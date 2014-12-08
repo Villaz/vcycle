@@ -9,24 +9,25 @@ class vcycleOpenstack(vcycleBase):
    
    def _create_client(self):
       '''Created a new Openstack client'''
-      tenancy = self.tenancy
-      if 'proxy' in tenancy:
+      space = self.space
+      if 'proxy' in space:
          import novaclient
          import novaclient.auth_plugin
          novaclient.auth_plugin.discover_auth_systems()
          auth_plugin = novaclient.auth_plugin.load_plugin('voms')
-         auth_plugin.opts["x509_user_proxy"] = tenancy['proxy']
-         novaClient = novaclient.client.Client('1.1',None,None,project_id=tenancy['tenancy_name'],auth_url=tenancy['url'],
-                                               auth_plugin=auth_plugin,auth_system='voms',insecure=True) 
+         auth_plugin.opts["x509_user_proxy"] = space['proxy']
+         novaClient = novaclient.client.Client('1.1', None, None, project_id=space['space_name'],
+                                              auth_url=space['url'], auth_plugin=auth_plugin,
+                                              auth_system='voms', insecure=True) 
       else:    
          import novaclient 
-         novaClient = novaclient.client.Client('1.1', username=tenancy['username'], api_key=tenancy['password'],
-                                               project_id=tenancy['tenancy_name'], auth_url=tenancy['url'])
+         novaClient = novaclient.client.Client('1.1', username=space['username'], api_key=space['password'],
+                                               project_id=space['space_name'], auth_url=space['url'])
       return novaClient
    
    
    def _servers_list(self):
-      '''Returns a list of all servers created and not deleted in the tenancy'''
+      '''Returns a list of all servers created and not deleted in the space'''
       serversList = self.client.servers.list(detailed=True)
       return serversList
    
@@ -41,28 +42,31 @@ class vcycleOpenstack(vcycleBase):
       properties['powerState'] = str(getattr(server, 'OS-EXT-STS:power_state'))
 
       try:
-        properties['launchedTime'] = calendar.timegm(time.strptime(str(getattr(server,'OS-SRV-USG:launched_at')).split('.')[0], "%Y-%m-%dT%H:%M:%S"))
-        properties['startTime']    = properties['launchedTime']
+         properties['launchedTime'] = calendar.timegm(time.strptime(str(getattr(server,'OS-SRV-USG:launched_at')).split('.')[0], "%Y-%m-%dT%H:%M:%S"))
+         properties['startTime']    = properties['launchedTime']
       except:
-        properties['launchedTime'] = None
-        properties['startTime']    = properties['createdTime']        
+         properties['launchedTime'] = None
+         properties['startTime']    = properties['createdTime']        
       else:        
-        if not os.path.isfile('/var/lib/vcycle/machines/' + server.name + '/launched'):
-          VCYCLE.createFile('/var/lib/vcycle/machines/' + server.name + '/launched', str(properties['launchedTime']), 0600)
+         if not os.path.isfile('/var/lib/vcycle/machines/' + server.name + '/launched'):
+            VCYCLE.createFile('/var/lib/vcycle/machines/' + server.name + '/launched', str(properties['launchedTime']), 0600)
         
       try:
-        properties['ip'] = str(getattr(server, 'addresses')['CERN_NETWORK'][0]['addr'])
+         properties['ip'] = str(getattr(server, 'addresses')['CERN_NETWORK'][0]['addr'])
       except:
-        properties['ip'] = '0.0.0.0'
+         try:
+            ip = str(getattr(oneServer, 'addresses')['novanetwork'][0]['addr'])
+         except:
+            ip = '0.0.0.0'
         
       try:
-        properties['heartbeatTime'] = int(os.stat('/var/lib/vcycle/machines/' + server.name + '/machineoutputs/vm-heartbeat').st_ctime)
-        properties['heartbeatStr'] = str(int(time.time() - properties['heartbeatTime'])) + 's'
+         properties['heartbeatTime'] = int(os.stat('/var/lib/vcycle/machines/' + server.name + '/machineoutputs/vm-heartbeat').st_ctime)
+         properties['heartbeatStr'] = str(int(time.time() - properties['heartbeatTime'])) + 's'
       except:
-        properties['heartbeatTime'] = None
-        properties['heartbeatStr'] = '-'
+         properties['heartbeatTime'] = None
+         properties['heartbeatStr'] = '-'
       
-      VCYCLE.logLine(self.tenancyName, server.name + ' ' + 
+      VCYCLE.logLine(self.spaceName, server.name + ' ' + 
               (vmtypeName + '                  ')[:16] + 
               (properties['ip'] + '            ')[:16] + 
               (server.status + '       ')[:8] + 
@@ -78,13 +82,15 @@ class vcycleOpenstack(vcycleBase):
    
    def _update_properties(self, server, vmtypeName,runningPerVmtype, notPassedFizzleSeconds, properties, totalRunning):
       '''Updates the server's properties'''
-      tenancy = self.tenancy
-      tenancyName = self.tenancyName
+      space = self.space
+      spaceName = self.spaceName
       
-      if server.status == 'SHUTOFF' and (properties['updatedTime'] - properties['startTime']) < tenancy['vmtypes'][vmtypeName]['fizzle_seconds']:
-        VCYCLE.logLine(self.tenancyName, server.name + ' was a fizzle! ' + str(properties['updatedTime'] - properties['startTime']) + ' seconds')
+      if server.status == 'SHUTOFF' and \
+         vmtypeName in space['vmtypes'] and
+         (properties['updatedTime'] - properties['startTime']) < space['vmtypes'][vmtypeName]['fizzle_seconds']:
+        VCYCLE.logLine(self.spaceName, server.name + ' was a fizzle! ' + str(properties['updatedTime'] - properties['startTime']) + ' seconds')
         try:
-          VCYCLE.lastFizzles[tenancyName][vmtypeName] = properties['updatedTime']
+          VCYCLE.lastFizzles[spaceName][vmtypeName] = properties['updatedTime']
         except:
           # In case vmtype removed from configuration while VMs still existed
           pass
@@ -98,10 +104,10 @@ class vcycleOpenstack(vcycleBase):
         else:
           runningPerVmtype[vmtypeName] += 1
 
-      # These ones are starting/running, but not yet passed tenancy['vmtypes'][vmtypeName]['fizzle_seconds']
+      # These ones are starting/running, but not yet passed space['vmtypes'][vmtypeName]['fizzle_seconds']
       if ((server.status == 'ACTIVE' or 
            server.status == 'BUILD') and 
-          ((int(time.time()) - properties['startTime']) < tenancy['vmtypes'][vmtypeName]['fizzle_seconds'])):
+          ((int(time.time()) - properties['startTime']) < space['vmtypes'][vmtypeName]['fizzle_seconds'])):
           
         if vmtypeName not in notPassedFizzleSeconds:
           notPassedFizzleSeconds[vmtypeName]  = 1
@@ -119,7 +125,7 @@ class vcycleOpenstack(vcycleBase):
       
    def _delete(self, server, vmtypeName, properties):
       '''Deletes a server'''
-      tenancy = self.tenancy
+      space = self.space
       if server.status  == 'BUILD':
          return False
       
@@ -136,18 +142,18 @@ class vcycleOpenstack(vcycleBase):
            or 
            (
              # ACTIVE gets deleted if longer than max VM lifetime 
-             server.status == 'ACTIVE' and properties['taskState'] == 'None' and ((int(time.time()) - properties['startTime']) > tenancy['vmtypes'][vmtypeName]['max_wallclock_seconds'])
+             server.status == 'ACTIVE' and properties['taskState'] == 'None' and ((int(time.time()) - properties['startTime']) > space['vmtypes'][vmtypeName]['max_wallclock_seconds'])
            )
            or 
            (
              # ACTIVE gets deleted if heartbeat defined in configuration but not updated by the VM
-             'heartbeat_file' in tenancy['vmtypes'][vmtypeName] and
-             'heartbeat_seconds' in tenancy['vmtypes'][vmtypeName] and
+             'heartbeat_file' in space['vmtypes'][vmtypeName] and
+             'heartbeat_seconds' in space['vmtypes'][vmtypeName] and
              server.status == 'ACTIVE' and properties['taskState'] == 'None' and 
-             ((int(time.time()) - properties['startTime']) > tenancy['vmtypes'][vmtypeName]['heartbeat_seconds']) and
+             ((int(time.time()) - properties['startTime']) > space['vmtypes'][vmtypeName]['heartbeat_seconds']) and
              (
               (properties['heartbeatTime'] is None) or 
-              ((int(time.time()) - properties['heartbeatTime']) > tenancy['vmtypes'][vmtypeName]['heartbeat_seconds'])
+              ((int(time.time()) - properties['heartbeatTime']) > space['vmtypes'][vmtypeName]['heartbeat_seconds'])
              )              
            )
            or
@@ -166,12 +172,12 @@ class vcycleOpenstack(vcycleBase):
              )             
            )
          ):
-        VCYCLE.logLine(self.tenancyName, 'Deleting ' + server.name)
+        VCYCLE.logLine(self.spaceName, 'Deleting ' + server.name)
         try:
           server.delete()
           return True
         except Exception as e:
-          VCYCLE.logLine(self.tenancyName, 'Delete ' + server.name + ' fails with ' + str(e))
+          VCYCLE.logLine(self.spaceName, 'Delete ' + server.name + ' fails with ' + str(e))
       return False
           
    def _server_name(self, name=None):
@@ -181,7 +187,7 @@ class vcycleOpenstack(vcycleBase):
    
    def _create_machine(self, serverName, vmtypeName, proxy=False):
       '''Creates a new VM using Openstack interface'''
-      tenancyName = self.tenancyName
+      spaceName = self.spaceName
       meta={ 'cern-services'   : 'false',
              'machinefeatures' : 'http://'  + os.uname()[1] + '/' + serverName + '/machinefeatures',
              'jobfeatures'     : 'http://'  + os.uname()[1] + '/' + serverName + '/jobfeatures',
@@ -189,10 +195,10 @@ class vcycleOpenstack(vcycleBase):
            }
       if proxy :
          return self.client.servers.create(serverName, 
-               self.client.images.find(name=VCYCLE.tenancies[tenancyName]['vmtypes'][vmtypeName]['image_name']),
-               self.client.flavors.find(name=VCYCLE.tenancies[tenancyName]['vmtypes'][vmtypeName]['flavor_name']), 
+               self.client.images.find(name=VCYCLE.spaces[spaceName]['vmtypes'][vmtypeName]['image_name']),
+               self.client.flavors.find(name=VCYCLE.spaces[spaceName]['vmtypes'][vmtypeName]['flavor_name']), 
                meta=meta, 
-               userdata=open('/var/lib/vcycle/user_data/' + tenancyName + ':' + vmtypeName, 'r').read())
+               userdata=open('/var/lib/vcycle/user_data/' + spaceName + ':' + vmtypeName, 'r').read())
       else:
          try:
             net = self.client.networks.find(label="net01")
@@ -200,10 +206,10 @@ class vcycleOpenstack(vcycleBase):
          except Exception:
             nics = []
          return self.client.servers.create(serverName, 
-                self.client.images.find(name=VCYCLE.tenancies[tenancyName]['vmtypes'][vmtypeName]['image_name']),
-                self.client.flavors.find(name=VCYCLE.tenancies[tenancyName]['vmtypes'][vmtypeName]['flavor_name']),
+                self.client.images.find(name=VCYCLE.spaces[spaceName]['vmtypes'][vmtypeName]['image_name']),
+                self.client.flavors.find(name=VCYCLE.spaces[spaceName]['vmtypes'][vmtypeName]['flavor_name']),
                 meta=meta, 
                 nics=nics,
-                key_name=VCYCLE.tenancies[tenancyName]['vmtypes'][vmtypeName]['root_key_name'],
-                userdata=open('/var/lib/vcycle/user_data/' + tenancyName + ':' + vmtypeName, 'r').read())
+                key_name=VCYCLE.spaces[spaceName]['vmtypes'][vmtypeName]['root_key_name'],
+                userdata=open('/var/lib/vcycle/user_data/' + spaceName + ':' + vmtypeName, 'r').read())
 

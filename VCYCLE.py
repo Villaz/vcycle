@@ -39,6 +39,9 @@ import json
 import tempfile
 import logging
 import ConfigParser
+import string
+import pycurl
+import StringIO
 
 tenancies    = None
 lastFizzles = {}
@@ -46,13 +49,20 @@ loggers = {}
 
 def readConf(requirePassword=True):
 
-  global tenancies, lastFizzles
+  global vcycleVersion, spaces, lastFizzles
   
-  tenancies = {}
+  try:
+    f = open('/var/lib/vcycle/doc/VERSION', 'r')
+    vcycleVersion = f.readline().split('=',1)[1].strip()
+    f.close()
+  except:
+    vcycleVersion = '0.0.0'
+  
+  spaces = {}
 
-  tenancyStrOptions = [ 'tenancy_name', 'url', 'username', 'proxy' , 'type', 'auth' ]
+  spaceStrOptions = [ 'tenancy_name', 'url', 'username', 'proxy' , 'type', 'auth' ]
 
-  tenancyIntOptions = [ 'max_machines' ]
+  spaceIntOptions = [ 'max_machines' ]
 
   vmtypeStrOptions = [ 'ce_name', 'image_name', 'flavor_name', 'root_key_name', 'x509dn', 'network', 'public_key' ]
 
@@ -76,68 +86,70 @@ def readConf(requirePassword=True):
   # Standalone configuration file, read last in case of manual overrides
   parser.read('/etc/vcycle.conf')
 
-  # First look for tenancy sections
+  # First look for space sections
 
-  for tenancySectionName in parser.sections():
-    split1 = tenancySectionName.lower().split(None,1)
+  for spaceSectionName in parser.sections():
+    split1 = spaceSectionName.lower().split(None,1)
 
     if split1[0] == 'vmtype':    
       continue
       
-    elif split1[0] != 'tenancy':
+    elif split1[0] != 'space':
       return 'Section type ' + split1[0] + ' not recognised'
       
     else:
-      tenancyName = split1[1]
+      spaceName = split1[1]
 # NEED TO CHECK THIS IS JUST a-z,0-9,-,_,.
-      tenancy = {}
+      space = {}
       
-      # Get the options from this section for this tenancy
-      if not parser.has_option(tenancySectionName, 'tenancy_name') :
-         return 'Option tenancy_name required in [' + tenancySectionName + ']'
+      # Get the options from this section for this space
+      if not parser.has_option(spaceSectionName, 'space_name') :
+         return 'Option space_name required in [' + spaceSectionName + ']'
       
-      if not parser.has_option(tenancySectionName, 'url') :
-         return 'Option url required in [' + tenancySectionName + ']'
+      if not parser.has_option(spaceSectionName, 'url') :
+         return 'Option url required in [' + spaceSectionName + ']'
       
-      if not parser.has_option(tenancySectionName, 'proxy') and not parser.has_option(tenancySectionName, 'username'):
-         return 'Option proxy or username is required in [' + tenancySectionName + ']'
+      if not parser.has_option(spaceSectionName, 'proxy') and not parser.has_option(spaceSectionName, 'username'):
+         return 'Option proxy or username is required in [' + spaceSectionName + ']'
       
-      tenancy['tenancy_name'] = parser.get(tenancySectionName,'tenancy_name') 
-      tenancy['url'] = parser.get(tenancySectionName,'url')
-      tenancy['type'] = parser.get(tenancySectionName,'type')
+      space['space_name'] = parser.get(spaceSectionName,'space_name') 
+      space['url'] = parser.get(spaceSectionName,'url')
+      space['type'] = parser.get(spaceSectionName,'type')
       
-      if not parser.has_option(tenancySectionName, 'auth'):
-         tenancy['auth'] = 'x509'
+      if not parser.has_option(spaceSectionName, 'auth'):
+         space['auth'] = 'x509'
       else:
-         tenancy['auth'] = parser.get(tenancySectionName,'auth')
+         space['auth'] = parser.get(spaceSectionName,'auth')
       
-      if parser.has_option(tenancySectionName,'proxy'):
-         tenancy['proxy'] = parser.get(tenancySectionName,'proxy') 
+      if parser.has_option(spaceSectionName,'proxy'):
+         space['proxy'] = parser.get(spaceSectionName,'proxy') 
          requirePassword = False
       else:
-         tenancy['username'] = parser.get(tenancySectionName,'username') 
+         space['username'] = parser.get(spaceSectionName,'username') 
       
       
-      for opt in tenancyIntOptions:
+      for opt in spaceIntOptions:
         try:
-          tenancy[opt] = int(parser.get(tenancySectionName, opt))
+          space[opt] = int(parser.get(spaceSectionName, opt))
         except:
-          return 'Option ' + opt + ' required in [' + tenancySectionName + ']'
+          return 'Option ' + opt + ' required in [' + spaceSectionName + ']'
 
       try:
-        tenancy['password'] = parser.get(tenancySectionName, 'password')
+        # We use ROT-1 (A -> B etc) encoding so browsing around casually doesn't
+        # reveal passwords in a memorable way. 
+        space['password'] = ''.join([ chr(ord(c)-1) for c in parser.get(spaceSectionName, 'password')])
       except:
         if requirePassword:
-          return 'Option password is required in [' + tenancySectionName + ']'
+          return 'Option password is required in [' + spaceSectionName + ']'
         else:
-          tenancy['password'] = ''
+          space['password'] = ''
 
       try:
-         tenancy['delete_old_files'] = bool(parser.get(tenancySectionName, 'delete_old_files'))
+         space['delete_old_files'] = bool(parser.get(spaceSectionName, 'delete_old_files'))
       except:
-         tenancy['delete_old_files'] = True
+         space['delete_old_files'] = True
 
-      # Get the options for each vmtype section associated with this tenancy
+      # Get the options for each vmtype section associated with this space
 
       vmtypes = {}
 
@@ -146,9 +158,10 @@ def readConf(requirePassword=True):
 
         if split2[0] == 'vmtype':
 
-          if split2[1] == tenancyName:
+          if split2[1] == spaceName:
             vmtypeName = split2[2]
-            # NEED TO CHECK THIS IS JUST a-z,0-9,-,_,.
+            
+            
             vmtype = {}
 
             for opt in vmtypeStrOptions:              
@@ -174,20 +187,44 @@ def readConf(requirePassword=True):
               vmtype['heartbeat_seconds'] = int(parser.get(vmtypeSectionName, 'heartbeat_seconds'))
             except:
               pass
-                      
-            if tenancyName not in lastFizzles:
-              lastFizzles[tenancyName] = {}
+            
+            try:
+              vmtype['user_data'] = parser.get(vmtypeSectionName, 'user_data')
+            except:
+              vmtype['user_data'] = 'user_data'
+            
+            
+            for (oneOption,oneValue) in parser.items(vmtypeSectionName):
+              if (oneOption[0:17] == 'user_data_option_') or (oneOption[0:15] == 'user_data_file_'):
+                if string.translate(oneOption, None, '0123456789abcdefghijklmnopqrstuvwxyz_') != '':
+                  return 'Name of user_data_xxx (' + oneOption + ') must only contain a-z 0-9 and _'
+                else:
+                  vmtype[oneOption] = parser.get(vmtypeSectionName, oneOption)
+            
+            if parser.has_option(vmtypeSectionName, 'log_machineoutputs') and \
+               parser.get(vmtypeSectionName, 'log_machineoutputs').strip().lower() == 'true':
+              vmtype['log_machineoutputs'] = True
+            else:
+              vmtype['log_machineoutputs'] = False
+
+            if parser.has_option(vmtypeSectionName, 'machineoutputs_days'):
+              vmtype['machineoutputs_days'] = float(parser.get(vmtypeSectionName, 'machineoutputs_days'))
+            else:
+              vmtype['machineoutputs_days'] = 3.0
+                    
+            if spaceName not in lastFizzles:
+              lastFizzles[spaceName] = {}
               
-            if vmtypeName not in lastFizzles[tenancyName]:
-              lastFizzles[tenancyName][vmtypeName] = int(time.time()) - vmtype['backoff_seconds']
+            if vmtypeName not in lastFizzles[spaceName]:
+              lastFizzles[spaceName][vmtypeName] = int(time.time()) - vmtype['backoff_seconds']
 
             vmtypes[vmtypeName] = vmtype
 
       if len(vmtypes) < 1:
-        return 'No vmtypes defined for tenancy ' + tenancyName + ' - each tenancy must have at least one vmtype'
+        return 'No vmtypes defined for space ' + spaceName + ' - each space must have at least one vmtype'
 
-      tenancy['vmtypes']     = vmtypes
-      tenancies[tenancyName] = tenancy
+      space['vmtypes']     = vmtypes
+      tenancies[spaceName] = space
 
   return None
 
@@ -209,46 +246,91 @@ def createFile(targetname, contents, mode=None):
   except:
     return False
 
-def makeJsonFile(targetDirectory):
-  # Create a dictionary containing the keys and values from the given directory
-  # and then write to .json in that directory
-  
-  outputDict = {}
-  
-  try:
-    filesList = os.listdir(targetDirectory)
-  except Exception as e:
-         logLine('Listing directory ' + targetDirectory + ' fails with ' + str(e))
+def getUserDataContents(spaceName, vmtypeName, serverName):
+
+  # Get raw user_data template file, either from network ...
+  if (spaces[spaceName]['vmtypes'][vmtypeName]['user_data'][0:7] == 'http://') or (spaces[spaceName]['vmtypes'][vmtypeName]['user_data'][0:8] == 'https://'):
+    buffer = StringIO.StringIO()
+    c = pycurl.Curl()
+    c.setopt(c.URL, spaces[spaceName]['vmtypes'][vmtypeName]['user_data'])
+    c.setopt(c.WRITEFUNCTION, buffer.write)
+    c.setopt(c.TIMEOUT, 30)
+    c.setopt(c.FOLLOWLOCATION, True)
+    c.setopt(c.SSL_VERIFYPEER, 1)
+    c.setopt(c.SSL_VERIFYHOST, 2)
+
+    if os.path.isdir('/etc/grid-security/certificates'):
+      c.setopt(c.CAPATH, '/etc/grid-security/certificates')
+    else:
+      logLine('/etc/grid-security/certificates directory does not exist - relying on curl bundle of commercial CAs')
+                                    
+    try:
+      c.perform()
+    except Exception as e:
+      raise NameError('Failed to read ' + spaces[spaceName]['vmtypes'][vmtypeName]['user_data'] + ' (' + str(e) + ')')
+
+    c.close()
+    userDataContents = buffer.getvalue()
+
+  # ... or from filesystem
   else:
-    for oneFile in filesList:
-     if oneFile[0] != '.' and not os.path.isdir(targetDirectory + '/' + oneFile):
-       try:
-         outputDict[oneFile] = open(targetDirectory + '/' + oneFile).read()
-       except Exception as e:
-         logLine('Failed reading ' + targetDirectory + '/' + oneFile + ' with ' + str(e))
-         pass
+    if spaces[spaceName]['vmtypes'][vmtypeName]['user_data'][0] == '/':
+      userDataFile = spaces[spaceName]['vmtypes'][vmtypeName]['user_data']
+    else:
+     userDataFile = '/var/lib/vcycle/vmtypes/' + spaceName + '/' + vmtypeName + '/' + spaces[spaceName]['vmtypes'][vmtypeName]['user_data']
+
+    try:
+      userDataContents = open(userDataFile, 'r').read()  
+    except Exception as e:
+      raise NameError('Failed reading user_data file ' + userDataFile + ' (' + str(e) + ')')
+
+  # Default substitutions
+  userDataContents = userDataContents.replace('##user_data_space##',         spaceName)
+  userDataContents = userDataContents.replace('##user_data_vmtype##',        vmtypeName)
+  userDataContents = userDataContents.replace('##user_data_vm_hostname##',   serverName)
+  userDataContents = userDataContents.replace('##user_data_vmlm_version##',  'Vcycle ' + vcycleVersion)
+  userDataContents = userDataContents.replace('##user_data_vmlm_hostname##', os.uname()[1])
+
+  # Site configurable substitutions for this vmtype
+  for oneOption, oneValue in (spaces[spaceName]['vmtypes'][vmtypeName]).iteritems():
+    if oneOption[0:17] == 'user_data_option_':
+      userDataContents = userDataContents.replace('##' + oneOption + '##', oneValue)
+
+    if oneOption[0:15] == 'user_data_file_':
+      try:
+        if oneValue[0] == '/':
+          f = open(oneValue, 'r')
+        else:
+          f = open('/var/lib/vcycle/vmtypes/' + spaceName + '/' + vmtypeName + '/' + oneValue, 'r')
+                           
+          userDataContents = userDataContents.replace('##' + oneOption + '##', f.read())
+          f.close()
+      except:
+        raise NameError('Failed to read ' + oneValue + ' for ' + oneOption)
 
   try:
-    f = open(targetDirectory + '/.json', 'w')
-    json.dump(outputDict, f)
-    f.close()   
-  except Exception as e:
-    logLine('Writing JSON fails with ' + str(e))
+    o = open('/var/lib/vcycle/machines/' + serverName + '/' + '/user_data', 'w')
+    o.write(userDataContents)
+    o.close()
+  except:
+    raise NameError('Failed to writing /var/lib/vcycle/machines/' + serverName + '/user_data')
+      
+  return userDataContents
 
-def logLine(tenancy, text):
+def logLine(space, text):
   global loggers
-  if not tenancy in loggers:
-     logger = logging.getLogger(tenancy)
+  if not space in loggers:
+     logger = logging.getLogger(space)
      logger.propagate = False
      logger.setLevel(logging.DEBUG)
      # create file handler which logs even debug messages
-     fh = logging.FileHandler("/var/log/vcycle-%s.log" % tenancy)
+     fh = logging.FileHandler("/var/log/vcycle-%s.log" % space)
      fh.setLevel(logging.DEBUG)
      formatter = logging.Formatter('%(asctime)s - %(message)s')
      fh.setFormatter(formatter)
      logger.addHandler(fh)
-     loggers[tenancy] = logger
+     loggers[space] = logger
 
-  loggers[tenancy].debug(text)
+  loggers[space].debug(text)
   #sys.stderr.write(time.strftime('%b %d %H:%M:%S [') + str(os.getpid()) + ']: ' + text + '\n')
   #sys.stderr.flush()
