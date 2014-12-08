@@ -52,7 +52,7 @@ sleepSeconds      = 60
 creationsPerCycle = 5
 
 
-def cycle(tenancyName, tenancy):
+def cycle(spaceName, space):
    while True:
       try:
          pf = open('/var/run/vcycled.pid', 'r')
@@ -63,20 +63,20 @@ def cycle(tenancyName, tenancy):
             break
       except:
          print 'no /var/run/vcycled.pid - exiting'
-         break
-   
-      VCYCLE.logLine(tenancyName, '=============== Start cycle ===============')
-      if tenancy['type'] == 'openstack':
+         break   
+      
+      VCYCLE.logLine(spaceName, '=============== Start cycle ===============')
+      if space['type'] == 'openstack':
          vOpen = vcycleOpenstack()
-      elif tenancy['type'] == 'dbce':
+      elif space['type'] == 'dbce':
          vOpen = vcycleDBCE()
       else:
          vOpen = vcycleOcci()
       try:
-         vOpen.oneCycle(tenancyName, tenancy)
+         vOpen.oneCycle(spaceName, space)
       except Exception,e:
-         VCYCLE.logLine(tenancyName, str(e))
-      VCYCLE.logLine(tenancyName, '================ End cycle ================')
+         VCYCLE.logLine(spaceName, str(e))
+      VCYCLE.logLine(spaceName, '================ End cycle ================')
       time.sleep(sleepSeconds)
       
 
@@ -91,7 +91,7 @@ if __name__ == '__main__':
       os.chdir("/")
       os.setsid()
       os.umask(0)
-
+   
    if os.fork() != 0:
       sys.exit() # second parent
    else:
@@ -102,11 +102,10 @@ if __name__ == '__main__':
       except:
          print 'Failed to create /var/run/vcycled.pid - exiting'
          sys.exit(1)
-   
-       
+
    VCYCLE.readConf()
-   for tenancyName, tenancy in VCYCLE.tenancies.iteritems():
-      threading.Thread(target=cycle,args=(tenancyName,tenancy)).start()
+   for spaceName, space in VCYCLE.tenancies.iteritems():
+      threading.Thread(target=cycle,args=(spaceName,space)).start()
         
 
   
