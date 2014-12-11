@@ -28,12 +28,14 @@ class vcycleBase(object):
       notPassedFizzleSeconds = {}
       foundPerVmtype         = {}
       runningPerVmtype       = {}
+      weightedPerVmtype      = {}
       serverNames            = []
 
       for vmtypeName,vmtype in space['vmtypes'].iteritems(): 
          notPassedFizzleSeconds[vmtypeName] = 0
          foundPerVmtype[vmtypeName]         = 0
          runningPerVmtype[vmtypeName]       = 0
+         weightedPerVmtype[vmtypeName]      = 0
       
       self.spaceName = spaceName
       self.space = space 
@@ -48,7 +50,7 @@ class vcycleBase(object):
       
       #Get the running and total found servers inside space
       for oneServer in servers_in_space:
-         (totalRunning, totalFound) = self.for_server_in_list(oneServer, totalRunning, totalFound, notPassedFizzleSeconds, foundPerVmtype, runningPerVmtype)
+         (totalRunning, totalFound) = self.for_server_in_list(oneServer, totalRunning, totalFound, notPassedFizzleSeconds, foundPerVmtype, runningPerVmtype, weightedPerVmtype)
          if not oneServer is None and oneServer.name[:7] == 'vcycle-':
             serverNames.append(oneServer.name)
                   
@@ -58,10 +60,10 @@ class vcycleBase(object):
       
       # Get rid of directories about old VMs
       self.cleanupDirectories(spaceName, serverNames)
-      self.cleanupMachineoutputs()
+      self.cleanupMachineoutputs(spaceName)
       
       # Now decide whether to create new VMs
-      createdThisCycle = 0
+      creationsThisCycle = 0
 
       # Keep going till limits exhausted
       while True:
@@ -69,7 +71,7 @@ class vcycleBase(object):
             VCYCLE.logLine(spaceName, 'Reached limit (%d) on number of machines to create for space %s' % (space['max_machines'], spaceName))
             return
 
-         if creationsThisCycle >= creationsPerCycle:
+         if creationsThisCycle >= self.creationsPerCycle:
             VCYCLE.logLine(spaceName, 'Already reached limit of %d machine creations this cycle' % creationsThisCycle )
             return
 
@@ -82,7 +84,7 @@ class vcycleBase(object):
         
          for vmtypeName in vmtypeNames:
             vmtype = space['vmtypes'][vmtypeName]
-    
+            
             if VCYCLE.spaces[spaceName]['vmtypes'][vmtypeName]['target_share'] <= 0.0:
                # Skip over any vmtypes with no target share
                continue
@@ -111,12 +113,12 @@ class vcycleBase(object):
                weightedPerVmtype[vmtypeNameToCreate]      += (1.0 / VCYCLE.spaces[spaceName]['vmtypes'][vmtypeNameToCreate]['target_share'])
               
          else:
-            VCYCLE.logLine('No more free capacity and/or suitable vmtype found within ' + spaceName)
+            VCYCLE.logLine(spaceName, 'No more free capacity and/or suitable vmtype found within ' + spaceName)
             return
          
    
    def for_server_in_list(self, server, totalRunning, totalFound,
-                          notPassedFizzleSeconds, foundPerVmtype, runningPerVmtype):
+                          notPassedFizzleSeconds, foundPerVmtype, runningPerVmtype, weightedPerVmtype):
       '''Executes for every server found in the space, if the server is stopped or it has been running
       more than an specific time, the method will delete the server.'''
       spaceName = self.spaceName
@@ -128,23 +130,24 @@ class vcycleBase(object):
         return (totalRunning , totalFound)
       
       try:
-        fileSpaceName = open('/var/lib/vcycle/machines/' + oneServer.name + '/space_name', 'r').read().strip()
+        fileSpaceName = open('/var/lib/vcycle/machines/' + server.name + '/space_name', 'r').read().strip()
       except:
         # Not one of ours? Cleaned up directory too early?
-        VCYCLE.logLine(spaceName, 'Skipping ' + oneServer.name + ' which has no space name')
-        continue
+        server.delete()
+        VCYCLE.logLine(spaceName, 'Deleted ' + server.name + ' which has no tenancy name')
+        return (totalRunning , totalFound)
       else:
         # Weird inconsistency, maybe the name changed? So log a warning and ignore this VM
-        if fileSpaceName != spaceName:        
-          VCYCLE.logLine(spaceName, 'Skipping ' + oneServer.name + ' which is in ' + space['space_name'] + ' but has space_name=' + fileSpaceName)
-          continue
+        if fileSpaceName != self.spaceName:        
+          VCYCLE.logLine(spaceName, 'Skipping ' + server.name + ' which is in ' + self.space['space_name'] + ' but has space_name=' + fileSpaceName)
+          return (totalRunning , totalFound)
 
       try:
-        vmtypeName = open('/var/lib/vcycle/machines/' + oneServer.name + '/vmtype_name', 'r').read().strip()
+        vmtypeName = open('/var/lib/vcycle/machines/' + server.name + '/vmtype_name', 'r').read().strip()
       except:
         # Something went wrong?
-        VCYCLE.logLine(spaceName, 'Skipping ' + oneServer.name + ' which has no vmtype name')
-        continue
+        VCYCLE.logLine(spaceName, 'Skipping ' + server.name + ' which has no vmtype name')
+        return (totalRunning , totalFound)
 
       if vmtypeName not in foundPerVmtype:
         foundPerVmtype[vmtypeName]  = 1
@@ -160,9 +163,9 @@ class vcycleBase(object):
          foundPerVmtype[vmtypeName] -= 1
          totalFound -= 1
 
-         if vmtypeName in space['vmtypes'] and space['vmtypes'][vmtypeName]['log_machineoutputs']:
-            VCYCLE.logLine(spaceName, 'Saving machineoutputs to /var/lib/vcycle/machineoutputs/' + spaceName + '/' + vmtypeName + '/' + oneServer.name)
-            VCYCLE.logMachineoutputs(oneServer.name, vmtypeName, spaceName)
+         if vmtypeName in self.space['vmtypes'] and self.space['vmtypes'][vmtypeName]['log_machineoutputs']:
+            VCYCLE.logLine(spaceName, 'Saving machineoutputs to /var/lib/vcycle/machineoutputs/' + spaceName + '/' + vmtypeName + '/' + server.name)
+            VCYCLE.logMachineoutputs(server.name, vmtypeName, spaceName)
       
       return (totalRunning , totalFound)
 
@@ -192,9 +195,7 @@ class vcycleBase(object):
       
       if not server is None:
          VCYCLE.createFile('/var/lib/vcycle/machines/' + serverName + '/machinefeatures/vac_uuid', server.id, 0644)
-      VCYCLE.makeJsonFile('/var/lib/vcycle/machines/' + serverName + '/machinefeatures')
-      VCYCLE.makeJsonFile('/var/lib/vcycle/machines/' + serverName + '/jobfeatures')
-
+      
       if not server is None:
          VCYCLE.logLine(spaceName, 'Created ' + serverName + ' (' + server.id + ') for ' + vmtypeName + ' within ' + spaceName)
       else:
@@ -245,7 +246,7 @@ class vcycleBase(object):
             continue
 
          # Save machineoutputs if not done so already
-         if vmtypeName in space['vmtypes'] and space['vmtypes'][vmtypeName]['log_machineoutputs']:
+         if vmtypeName in self.space['vmtypes'] and self.space['vmtypes'][vmtypeName]['log_machineoutputs']:
             VCYCLE.logLine(spaceName, 'Saving machineoutputs to /var/lib/vcycle/machineoutputs/' + spaceName + '/' + vmtypeName + '/' + onedir)
             VCYCLE.logMachineoutputs(onedir, vmtypeName, spaceName)
 
@@ -256,7 +257,7 @@ class vcycleBase(object):
             VCYCLE.logLine(spaceName, 'Failed deleting /var/lib/vcycle/machines/' + onedir + ' (' + fileSpaceName + ' ' + str(int(time.time()) - onedirCtime) + 's)')
 
 
-   def cleanupMachineoutputs():
+   def cleanupMachineoutputs(self, spaceName):
       try:
          spacesDirslist = os.listdir('/var/lib/vcycle/machinesoutputs/')
       except:
@@ -278,7 +279,7 @@ class vcycleBase(object):
             for hostNameDir in hostNamesDirslist:
                hostNameDirCtime = int(os.stat('/var/lib/vcycle/machinesoutputs/' + spaceDir + '/' + vmtypeDir + '/' + hostNameDir).st_ctime)
                try: 
-                  expirationDays = spaces[spaceName][vmtypeDir]['machineoutputs_days']
+                  expirationDays = VCYCLE.spaces[spaceName][vmtypeDir]['machineoutputs_days']
                except:
                   # use the default if something goes wrong (configuration file changed?)
                   expirationDays = 3.0

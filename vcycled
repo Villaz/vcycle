@@ -63,8 +63,8 @@ def cycle(spaceName, space):
             break
       except:
          print 'no /var/run/vcycled.pid - exiting'
-         break   
-      
+         break
+            
       VCYCLE.logLine(spaceName, '=============== Start cycle ===============')
       if space['type'] == 'openstack':
          vOpen = vcycleOpenstack()
@@ -102,9 +102,9 @@ if __name__ == '__main__':
       except:
          print 'Failed to create /var/run/vcycled.pid - exiting'
          sys.exit(1)
-
+   
    VCYCLE.readConf()
-   for spaceName, space in VCYCLE.tenancies.iteritems():
+   for spaceName, space in VCYCLE.spaces.iteritems():
       threading.Thread(target=cycle,args=(spaceName,space)).start()
         
 

@@ -42,10 +42,13 @@ import ConfigParser
 import string
 import pycurl
 import StringIO
+import shutil
+import stat
 
 tenancies    = None
 lastFizzles = {}
 loggers = {}
+spaces = {}
 
 def readConf(requirePassword=True):
 
@@ -58,7 +61,7 @@ def readConf(requirePassword=True):
   except:
     vcycleVersion = '0.0.0'
   
-  spaces = {}
+  
 
   spaceStrOptions = [ 'tenancy_name', 'url', 'username', 'proxy' , 'type', 'auth' ]
 
@@ -201,6 +204,11 @@ def readConf(requirePassword=True):
                 else:
                   vmtype[oneOption] = parser.get(vmtypeSectionName, oneOption)
             
+            try:
+               vmtype['target_share'] = float(parser.get(vmtypeSectionName, 'target_share'))
+            except:
+               return 'Option target_share required in [' + vmtypeSectionName + ']'
+            
             if parser.has_option(vmtypeSectionName, 'log_machineoutputs') and \
                parser.get(vmtypeSectionName, 'log_machineoutputs').strip().lower() == 'true':
               vmtype['log_machineoutputs'] = True
@@ -224,7 +232,7 @@ def readConf(requirePassword=True):
         return 'No vmtypes defined for space ' + spaceName + ' - each space must have at least one vmtype'
 
       space['vmtypes']     = vmtypes
-      tenancies[spaceName] = space
+      spaces[spaceName] = space
 
   return None
 
@@ -332,5 +340,38 @@ def logLine(space, text):
      loggers[space] = logger
 
   loggers[space].debug(text)
-  #sys.stderr.write(time.strftime('%b %d %H:%M:%S [') + str(os.getpid()) + ']: ' + text + '\n')
-  #sys.stderr.flush()
+  
+
+def logMachineoutputs(hostName, vmtypeName, spaceName):
+   if os.path.exists('/var/lib/vcycle/machineoutputs/' + spaceName + '/' + vmtypeName + '/' + hostName):
+      # Copy (presumably) already exists so don't need to do anything
+      return
+
+   try:
+      os.makedirs('/var/lib/vcycle/machineoutputs/' + spaceName + '/' + vmtypeName + '/' + hostName,
+      stat.S_IWUSR + stat.S_IXUSR + stat.S_IRUSR + stat.S_IXGRP + stat.S_IRGRP + stat.S_IXOTH + stat.S_IROTH)
+   except:
+      logLine('Failed creating /var/lib/vcycle/machineoutputs/' + spaceName + '/' + vmtypeName + '/' + hostName)
+      return
+   try:
+      # Get the list of files that the VM wrote in its /etc/machineoutputs
+      outputs = os.listdir('/var/lib/vcycle/machines/' + hostName + '/machineoutputs')
+   except:
+      logLine('Failed reading /var/lib/vcycle/machines/' + hostName + '/machineoutputs')
+      return
+
+   if outputs:
+      # Go through the files one by one, adding them to the machineoutputs directory
+      for oneOutput in outputs:
+         try:
+            # first we try a hard link, which is efficient in time and space used
+            os.link('/var/lib/vcycle/machines/' + hostName + '/machineoutputs/' + oneOutput,
+            '/var/lib/vcycle/machineoutputs/' + spaceName + '/' + vmtypeName + '/' + hostName + '/' + oneOutput)
+         except:
+            try:
+               # if linking failed (different filesystems?) then we try a copy
+               shutil.copyfile('/var/lib/vcycle/machines/' + hostName + '/machineoutputs/' + oneOutput,
+               '/var/lib/vcycle/machineoutputs/' + spaceName + '/' + vmtypeName + '/' + hostName + '/' + oneOutput)
+            except:
+               logLine('Failed copying /var/lib/vcycle/machines/' + hostName + '/machineoutputs/' + oneOutput +
+               ' to /var/lib/vcycle/machineoutputs/' + spaceName + '/' + vmtypeName + '/' + hostName + '/' + oneOutput)

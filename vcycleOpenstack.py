@@ -55,7 +55,7 @@ class vcycleOpenstack(vcycleBase):
          properties['ip'] = str(getattr(server, 'addresses')['CERN_NETWORK'][0]['addr'])
       except:
          try:
-            ip = str(getattr(oneServer, 'addresses')['novanetwork'][0]['addr'])
+            ip = str(getattr(server, 'addresses')['novanetwork'][0]['addr'])
          except:
             ip = '0.0.0.0'
         
@@ -86,7 +86,7 @@ class vcycleOpenstack(vcycleBase):
       spaceName = self.spaceName
       
       if server.status == 'SHUTOFF' and \
-         vmtypeName in space['vmtypes'] and
+         vmtypeName in space['vmtypes'] and \
          (properties['updatedTime'] - properties['startTime']) < space['vmtypes'][vmtypeName]['fizzle_seconds']:
         VCYCLE.logLine(self.spaceName, server.name + ' was a fizzle! ' + str(properties['updatedTime'] - properties['startTime']) + ' seconds')
         try:
