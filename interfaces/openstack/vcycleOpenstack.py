@@ -4,6 +4,7 @@ import VCYCLE
 import uuid
 import time , calendar
 from novaclient.client import Client
+
 class vcycleOpenstack(vcycleBase):
    '''Class to create VMs using OpenStack interface'''
    
