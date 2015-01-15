@@ -12,14 +12,14 @@ class vcycleDBCE(vcycleBase):
    
    def _create_client(self):
       '''Create a new DBCE client'''
-      tenancy = self.tenancy
-      self.provider_name = tenancy['tenancy_name']
-      dbceClient = interfaces.dbce.client.DBCE(tenancy['url'], tenancy['username'], tenancy['password'])
+      space = self.space
+      self.provider_name = space['space_name']
+      dbceClient = interfaces.dbce.client.DBCE(space['url'], space['username'], space['password'])
       return dbceClient
    
    
    def _servers_list(self):
-      '''Returns a list of all servers created and not deleted in the tenancy'''
+      '''Returns a list of all servers created and not deleted in the space'''
       serversList = self.client.machine.list(self.provider_name)
       return serversList
    
@@ -43,7 +43,7 @@ class vcycleDBCE(vcycleBase):
         properties['heartbeatTime'] = None
         properties['heartbeatStr'] = '-'
       
-      VCYCLE.logLine(self.tenancyName, server.name + ' ' + 
+      VCYCLE.logLine(self.spaceName, server.name + ' ' + 
               (vmtypeName + '                  ')[:16] + 
               (properties['ip'] + '            ')[:16] + 
               (server.status + '       ')[:8] + 
@@ -57,13 +57,13 @@ class vcycleDBCE(vcycleBase):
    
    def _update_properties(self, server, vmtypeName,runningPerVmtype, notPassedFizzleSeconds, properties, totalRunning):
       '''Updates the server's properties'''
-      tenancy = self.tenancy
-      tenancyName = self.tenancyName
+      space = self.space
+      spaceName = self.spaceName
       
-      if server.status == 'SHUTOFF' and (properties['updatedTime'] - properties['startTime']) < tenancy['vmtypes'][vmtypeName]['fizzle_seconds']:
-        VCYCLE.logLine(tenancyName, server.name + ' was a fizzle! ' + str(properties['updatedTime'] - properties['startTime']) + ' seconds')
+      if server.status == 'SHUTOFF' and (properties['updatedTime'] - properties['startTime']) < space['vmtypes'][vmtypeName]['fizzle_seconds']:
+        VCYCLE.logLine(spaceName, server.name + ' was a fizzle! ' + str(properties['updatedTime'] - properties['startTime']) + ' seconds')
         try:
-          VCYCLE.lastFizzles[tenancyName][vmtypeName] = properties['updatedTime']
+          VCYCLE.lastFizzles[spaceName][vmtypeName] = properties['updatedTime']
         except:
           # In case vmtype removed from configuration while VMs still existed
           pass
@@ -77,10 +77,10 @@ class vcycleDBCE(vcycleBase):
         else:
           runningPerVmtype[vmtypeName] += 1
 
-      # These ones are starting/running, but not yet passed tenancy['vmtypes'][vmtypeName]['fizzle_seconds']
+      # These ones are starting/running, but not yet passed space['vmtypes'][vmtypeName]['fizzle_seconds']
       if ((server.status == 'STARTED' or 
            server.status == 'BUILD') and 
-          ((int(time.time()) - properties['startTime']) < tenancy['vmtypes'][vmtypeName]['fizzle_seconds'])):
+          ((int(time.time()) - properties['startTime']) < space['vmtypes'][vmtypeName]['fizzle_seconds'])):
           
         if vmtypeName not in notPassedFizzleSeconds:
           notPassedFizzleSeconds[vmtypeName]  = 1
@@ -98,32 +98,32 @@ class vcycleDBCE(vcycleBase):
       
    def _delete(self, server, vmtypeName, properties):
       '''Deletes a server'''
-      tenancy = self.tenancy
+      space = self.space
       if server.status  == 'CREATING':
          return False
       
       if server.status in ['SHUTOFF','ERROR','DELETED', 'STOPPED'] or \
-        (server.status == 'STARTED' and ((int(time.time()) - properties['startTime']) > tenancy['vmtypes'][vmtypeName]['max_wallclock_seconds'])) or \
+        (server.status == 'STARTED' and ((int(time.time()) - properties['startTime']) > space['vmtypes'][vmtypeName]['max_wallclock_seconds'])) or \
         (
              # STARTED gets deleted if heartbeat defined in configuration but not updated by the VM
-             'heartbeat_file' in tenancy['vmtypes'][vmtypeName] and
-             'heartbeat_seconds' in tenancy['vmtypes'][vmtypeName] and
+             'heartbeat_file' in space['vmtypes'][vmtypeName] and
+             'heartbeat_seconds' in space['vmtypes'][vmtypeName] and
              server.status == 'STARTED' and 
-             ((int(time.time()) - properties['startTime']) > tenancy['vmtypes'][vmtypeName]['heartbeat_seconds']) and
+             ((int(time.time()) - properties['startTime']) > space['vmtypes'][vmtypeName]['heartbeat_seconds']) and
              (
               (properties['heartbeatTime'] is None) or 
-              ((int(time.time()) - properties['heartbeatTime']) > tenancy['vmtypes'][vmtypeName]['heartbeat_seconds'])
+              ((int(time.time()) - properties['heartbeatTime']) > space['vmtypes'][vmtypeName]['heartbeat_seconds'])
              )              
            ):
           
          
-        VCYCLE.logLine(self.tenancyName, 'Deleting ' + server.name)
+        VCYCLE.logLine(self.spaceName, 'Deleting ' + server.name)
         try:
           self.client.machine.delete(server.id)
           self.servers_contextualized.pop(server.id, None)
           return True
         except Exception as e:
-          VCYCLE.logLine(self.tenancyName, 'Delete ' + server.name + ' fails with ' + str(e))
+          VCYCLE.logLine(self.spaceName, 'Delete ' + server.name + ' fails with ' + str(e))
       return False
           
    def _server_name(self, name=None):
@@ -133,12 +133,14 @@ class vcycleDBCE(vcycleBase):
    
    def _create_machine(self, serverName, vmtypeName, proxy=False):
       import base64
-      tenancyName = self.tenancyName
-      user_data = open("/var/lib/vcycle/user_data/%s:%s" % (tenancyName, vmtypeName), 'r').read()
-      template = self.client.machine_template.find(VCYCLE.tenancies[tenancyName]['vmtypes'][vmtypeName]['image_name'],
-                                                   VCYCLE.tenancies[tenancyName]['vmtypes'][vmtypeName]['flavor_name'],
+      spaceName = self.spaceName
+      user_data = open("/var/lib/vcycle/user_data/%s:%s" % (spaceName, vmtypeName), 'r').read()
+      template = self.client.machine_template.find(VCYCLE.spaces[spaceName]['vmtypes'][vmtypeName]['image_name'],
+                                                   VCYCLE.spaces[spaceName]['vmtypes'][vmtypeName]['flavor_name'],
                                                    self.provider_name)[0]
+      
       template.user_data = base64.encodestring(user_data)
-      server = self.client.machine.create(serverName, serverName, template, self.provider_name, key_data=[VCYCLE.tenancies[tenancyName]['vmtypes'][vmtypeName]['public_key']])
+      template.network = self.client.network.list(self.provider_name)
+      server = self.client.machine.create(serverName, serverName, template, self.provider_name, key_data=[VCYCLE.spaces[spaceName]['vmtypes'][vmtypeName]['public_key']])
       return server
    
