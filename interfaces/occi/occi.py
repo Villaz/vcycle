@@ -51,14 +51,17 @@ class Occi():
          return result
 
 
-   def _describe(self,resource):
+   def _describe(self,resource, array=False):
       '''Describe a specific resource'''
       command = "occi --endpoint %s --action describe --resource %s" % (self.endpoint, resource)
       command += self.command_credentials
       command += ' --output-format json_extended'
       
       result = self.process_std(command)
-      return json.loads(result)[0]
+      if array:
+         return json.loads(result)
+      else:
+         return json.loads(result)[0]
 
 
    def _create(self, mix_os, mix_resource, user_data, attributes={}):
@@ -184,45 +187,23 @@ class Compute():
       
    def list(self, detailed=True, action=None):
       servers = []
-      list_servers = self.occi._list('compute')
-      for server in list_servers:
-         try:
-            if detailed:
-               ob = self.describe(server)
-               servers.append(ob)
-               if not action is None:
-                  action(ob)
-            else:
-               servers.append(server)
-         except Exception:
-            pass
+      if detailed:
+         return self.describe_all()
+      else:
+         return self.occi._list('compute')
+       
+   
+   def describe_all(self):
+      servers = []
+      descriptions = self.occi._describe('compute',True)
+      for description in descriptions:
+         servers.append(self.create_server_from_description(description))
       return servers
    
    
-   def describe(self, name):
-      def call_describe(name, error_counter=0):
-         try:
-            return self.occi._describe(name)
-         except Exception,e:
-            if "Timeout" in e.args[0]:
-               error_counter = error_counter + 1
-               if error_counter >= 3:
-                  raise e
-               return call_describe(name, error_counter)
-            if "no idea" in e.args[0]:
-               error_counter = error_counter + 1
-               if error_counter >= 3:
-                  raise e
-               return call_describe(name[name.find('/compute/'):],error_counter)
-            else:
-               raise e
-      
-      try:
-         description = call_describe(name)
-      except Exception:
-         return None
-      
+   def create_server_from_description(self, description):
       vm_id = description['attributes']['occi']['core']['id']
+      name = description['attributes']['occi']['compute']['hostname']
       
       if 'hostname' in description['attributes']['occi']['compute']:
          hostname = description['attributes']['occi']['compute']['hostname']
@@ -261,8 +242,32 @@ class Compute():
       flavor = None
       #flavor = description['mixins'][0]
       #flavor = self.occi.flavors.describe(flavor[flavor.index('#')+1:])
-      return Server(self.occi, name, vm_id, hostname, status, ip, os, flavor, console, state, network)
-
+      return Server(self.occi, name, vm_id, hostname, status, ip, os, flavor, console, state, network) 
+        
+   def describe(self, name):
+      def call_describe(name, error_counter=0):
+         try:
+            return self.occi._describe(name)
+         except Exception,e:
+            if "Timeout" in e.args[0]:
+               error_counter = error_counter + 1
+               if error_counter >= 3:
+                  raise e
+               return call_describe(name, error_counter)
+            if "no idea" in e.args[0]:
+               error_counter = error_counter + 1
+               if error_counter >= 3:
+                  raise e
+               return call_describe(name[name.find('/compute/'):],error_counter)
+            else:
+               raise e
+      
+      try:
+         description = call_describe(name)
+         return self.create_server_from_description(self, description)
+      except Exception:
+         return None
+      
       
    def create(self, name, image, flavor, meta={}, user_data=None, key_name=None ):
       meta = {}
@@ -279,6 +284,11 @@ class Compute():
          return self.occi._delete(resource)
       except Exception,e:
          return self.occi._delete(resource[resource.find('/compute/'):])
+      
+      
+   def delete_all(self):
+      '''Delete all compute resources'''
+      return self.occi._delete('compute')
 
    
    def link(self, resource, network):
