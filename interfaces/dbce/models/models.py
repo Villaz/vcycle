@@ -133,6 +133,10 @@ class Network():
       
    def json(self):
       return {'network':{'href':self.id}}
+   
+   
+   def __repr__(self):
+      return "%s %s %s" % (self.id, self.name, self.state)
 
 
 class NetworkTemplate():

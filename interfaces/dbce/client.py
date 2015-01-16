@@ -320,9 +320,10 @@ class NetworkOp(Op):
    
    
    def list_result(self, networks):
+      list_networks = []
       for network in networks['networks']:
-         return Network( network['id'], network['name'], network['state'], network['networkType'])
-      return None
+         list_networks.append(Network( network['id'], network['name'], network['state'], network['networkType']))
+      return list_networks
       
 
    
@@ -370,6 +371,11 @@ class NetworkOp(Op):
       return self.status[request.status_code]()
    
    
+   def find(self, provider, name):
+      for network in self.list(provider):
+         if network.name == name:
+            return network
+      return None
       
 
 

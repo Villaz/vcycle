@@ -140,7 +140,7 @@ class vcycleDBCE(vcycleBase):
                                                    self.provider_name)[0]
       
       template.user_data = base64.encodestring(user_data)
-      template.network = self.client.network.list(self.provider_name)
+      template.network = self.client.network.find(self.provider_name,VCYCLE.spaces[spaceName]['vmtypes'][vmtypeName]['network'])
       server = self.client.machine.create(serverName, serverName, template, self.provider_name, key_data=[VCYCLE.spaces[spaceName]['vmtypes'][vmtypeName]['public_key']])
       return server
    
