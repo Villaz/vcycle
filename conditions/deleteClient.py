@@ -21,11 +21,11 @@ def drop_servers_not_in_db(list_servers, collection, site, experiment, client, i
 
 
 def drop_db_servers_not_in_provider(list_servers, collection, site, experiment, client, info, logger=None):
-    hostnames = [vm['hostname'] for vm in list_servers]
+    id = [vm['id'] for vm in list_servers]
     cursor = collection.find({'experiment': experiment,
-                     'site': site,
-                     'state': {'$nin': ['DELETED']},
-                     'hostname': {'$nin': hostnames}})
+                              'site': site,
+                              'state': {'$nin': ['DELETED']},
+                              'id': {'$nin': id}})
     for vm in cursor:
         if logger:
             logger.info("VM %s not in client, change state to delete", vm['hostname'])
@@ -34,18 +34,18 @@ def drop_db_servers_not_in_provider(list_servers, collection, site, experiment, 
 
 
 def db_servers_where_provider_has_status_error_stopped(list_servers, collection, site, experiment, client, info, logger=None):
-    hostnames = []
+    ids = []
     for vm in list_servers:
         if vm['state'] in ['STOPPED', 'ERROR', 'ENDED']:
             if logger:
                 logger.info("VM %s with state %s", vm['hostname'], vm['state'])
-            hostnames.append(vm['hostname'])
-    cursor = collection.find({'hostname': {'$in': hostnames},
+            ids.append(vm['ids'])
+    cursor = collection.find({'id': {'$in': ids},
                               'state': {'$nin': ['DELETED','ENDED']}})
     for vm in cursor:
         client.delete(vm['id'])
         if logger:
             logger.info("VM %s with provider state STOPPED/ERROR , DELETING VM", vm['hostname'])
-        collection.find_one_and_update({'hostname':vm['hostname']},
+        collection.find_one_and_update({'id': vm['id']},
                                            {'$set': {'state': 'DELETED'}})
 

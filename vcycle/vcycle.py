@@ -105,16 +105,19 @@ class Cycle:
         params_to_create = copy.deepcopy(self.params)
 
         params_to_create['hostname'] = params_to_create['id'] = "%s-%s" % (self.params['prefix'], str(int(moment.now().epoch())))
-        params_to_create['host'], params_to_create['ganglia_port'] = self.__ganglia_port()
+        try:
+            params_to_create['host'], params_to_create['ganglia_port'] = self.__ganglia_port()
+        except:
+            pass
         params_to_create['site'] = self.site
         if 'experiment' in params_to_create:
             params_to_create[params_to_create['experiment']] = True
         params_to_create['experiment'] = self.experiment
 
-        env = Environment(loader=PackageLoader('vcycle', 'contextualization'))
+        env = Environment(loader=PackageLoader('contextualization', ''))
         template = env.get_template(params_to_create['user_data'])
         params_to_create['user_data'] = template.render(params_to_create)
-        open("./tmp/%s" % str(uuid.uuid4()),'w').write(params_to_create['user_data'])
+        open("../tmp/%s" % str(uuid.uuid4()),'w').write(params_to_create['user_data'])
         params_to_create['logger'] = self.logger if self.logger is not None else False
 
         server = self.client.create(**params_to_create)

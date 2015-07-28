@@ -8,6 +8,7 @@ import os
 import vcycle
 import time
 from db import capped
+import threading
 
 
 def parse_params(site, experiment):
@@ -31,16 +32,16 @@ def parse_params(site, experiment):
 
 
 def load_connectors():
-    connectors = {}
+    global connectors
     for connector in configuration['vcycle']['connectors']:
         type = configuration['vcycle']['connectors'][connector]['type']
         module = __import__("connectors."+type)
         class_ = getattr(module, type)
         connectors[connector] = class_.create(**configuration['vcycle']['connectors'][connector])
-    return connectors
 
 
 def init_processing(site, experiment):
+    global connectors
     connector = connectors[configuration['vcycle']['experiments'][experiment]['sites'][site]['connector']]
     cycle = vcycle.Cycle(client=connector,
                          db=db,
@@ -51,7 +52,7 @@ def init_processing(site, experiment):
     cycle.iterate()
 
 
-def process_queue(queue, lock):
+def process_queue(queue, locks):
     while True:
         try:
             message = queue.get()
@@ -78,6 +79,7 @@ def process_queue(queue, lock):
 
 
 def do_cycle(processes, locks):
+
     def init(experiment, site, lock):
         locks[lock].acquire()
         connector = connectors[configuration['vcycle']['experiments'][experiment]['sites'][site]['connector']]
@@ -93,7 +95,7 @@ def do_cycle(processes, locks):
     time.sleep(5*60)
     while True:
         for lock in locks:
-            #If the thread didn't finish in 3 minutes, something is wrong and the thread is deleted
+            # If the thread didn't finish in 3 minutes, something is wrong and the thread is deleted
             experiment, site = lock.split(":")
             if processes["%s:%s" % (experiment.upper(), site.upper())]['process'].is_alive():
                 processes["%s:%s" % (experiment.upper(), site.upper())]['process'].terminate()
@@ -121,25 +123,21 @@ def get_log(site, experiment):
 
 
 def start_process():
-    import threading
-
-    queue = multiprocessing.Queue()
-    processes = {}
-    locks = {}
+    global db, configuration, connectors, queue, processes, locks
 
     try:
-        configuration = yaml.load(open('./conf/infinity.conf'))
+        configuration = yaml.load(open('../conf/infinity.conf'))
     except Exception as ex:
-        get_log("server","server").error(str(ex))
+        get_log("server", "server").error(str(ex))
 
     client = MongoClient(configuration['vcycle']['db']['mongo']['url'])
     db = client.infinity.computer_test
 
     # Create the connector objects
-    connectors = load_connectors()
+    load_connectors()
 
     if 'capped_servers' not in client.infinity.collection_names():
-        db.create_collection('capped_servers',capped=True, size=2**20, autoIndexId=False)
+        db.create_collection('capped_servers', capped=True, size=2**20, autoIndexId=False)
     capped_collection = client.infinity.capped_servers
 
     # Parse configuration File
@@ -162,5 +160,12 @@ def start_process():
 
 
 if __name__ == "__main__":
+    db = None
+    configuration = None
+    connectors = {}
+    queue = multiprocessing.Queue()
+    processes = {}
+    locks = {}
+
     start_process()
 

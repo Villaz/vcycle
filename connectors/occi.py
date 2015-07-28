@@ -3,6 +3,7 @@ __author__ = 'Luis Villazon Esteban'
 from cloudconnector import CloudConnector
 import requests
 import time
+import base64
 from time import mktime
 
 
@@ -37,7 +38,7 @@ class Occi(CloudConnector):
         Does a HEAD request to get the authenticate url, if the url does not exist, the authentication is donde via
         certificate or proxy. If the url exists, a new request is donde to the url
         """
-        response = requests.head(self.params['endpoint'])
+        response = requests.head(self.params['endpoint'], verify=False)
         #Is Openstack
         if 'www-authenticate' in response.headers:
             url = response.headers['www-authenticate']
@@ -108,15 +109,15 @@ class Occi(CloudConnector):
         import uuid
         self.__check_token()
         data = 'Category: compute;scheme="http://schemas.ogf.org/occi/infrastructure#";class="kind";location="/compute/";title="Compute Resource"\n'
-        data += 'Category: %s;%s;class="mixin";location="/%s"\n' % (kwargs['image'], self['categories'][kwargs['image']]['scheme'], kwargs['image'])
-        data += 'Category: %s;%s;class="mixin";location="/%s"\n' % (kwargs['flavor'], self['categories'][kwargs['flavor']]['scheme'], kwargs['flavor'])
+        data += 'Category: %s;%s;class="mixin";location="/%s"\n' % (kwargs['image'], self.categories[kwargs['image']]['scheme'], kwargs['image'])
+        data += 'Category: %s;%s;class="mixin";location="/%s"\n' % (kwargs['flavor'], self.categories[kwargs['flavor']]['scheme'], kwargs['flavor'])
         data += 'Category: user_data;scheme="http://schemas.openstack.org/compute/instance#";class="mixin";location="/mixin/user_data/";title="OS contextualization mixin"\n';
         data += 'X-OCCI-Attribute: occi.core.id="%s"\n' % str(uuid.uuid4())
         data += 'X-OCCI-Attribute: occi.core.title="%s"\n' % kwargs['hostname']
         data += 'X-OCCI-Attribute: occi.compute.hostname="%s"\n' % kwargs['hostname']
 
         if 'user_data' in kwargs:
-            data += 'X-OCCI-Attribute: org.openstack.compute.user_data="%s"' %  kwargs['user_data']
+            data += 'X-OCCI-Attribute: org.openstack.compute.user_data="%s"' % base64.b64encode(kwargs['user_data'])
 
         headers = {'Accept': 'text/plain,text/occi',
                    'Content-Type': 'text/plain,text/occi',
@@ -131,8 +132,19 @@ class Occi(CloudConnector):
                       headers=headers,
                       cert=self.params['proxy'],
                       verify=False)
-        if response.status_code != 200:
+        if response.status_code not in [200, 201]:
             raise BaseException(response.text)
+        else:
+            vm = {'id':None, 'hostname': kwargs['hostname'], 'state': 'CREATING' }
+            if 'Location' in response.headers:
+                vm['id'] = response.headers['Location']
+                vm['id'] = vm['id'][vm['id'].find("/")+1:]
+            elif 'location' in response.headers:
+                vm['id'] = response.headers['location']
+                vm['id'] = vm['id'][vm['id'].find("/")+1:]
+            else:
+                vm['id'] = response.text[response.text.find(":")+1:].rstrip()
+        return vm
 
     def __describe(self, uri, token, vms):
         """ Returns a description of a given VM
@@ -146,10 +158,18 @@ class Occi(CloudConnector):
                    'Content-Type': 'application/occi+json'}
         if token is not None:
             headers['X-Auth-Token'] = token
-        response = requests.get(uri,
-                                cert=self.params['proxy'],
-                                headers=headers,
-                                verify=False)
+
+        try:
+            response = requests.get(uri,
+                                    cert=self.params['proxy'],
+                                    headers=headers,
+                                    timeout=60,
+                                    verify=False)
+        except requests.Timeout as timeout:
+            computer = {'id': uri[uri.rfind('/')+1:], 'hostname': 'UNKNOWN', 'state': 'UNKNOWN'}
+            vms.append(computer)
+            return
+
         response = response.json()
 
         computer = {'id': response['attributes']['occi.core.id'],
@@ -215,6 +235,12 @@ class OpenstackAuth:
         :param endpoint: Endpoint to do the authentication
         """
         self.params = kwargs
+
+        if self.params['endpoint'].endswith("/v2.0"):
+            self.params['endpoint'] = self.params['endpoint'].replace("/v2.0", "")
+        elif self.params['endpoint'].endswith("/v2.0/"):
+            self.params['endpoint'] = self.params['endpoint'].replace("/v2.0/", "")
+
 
     def auth(self):
         """ Does the authentication

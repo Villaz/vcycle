@@ -6,14 +6,12 @@ from pymongo import ReturnDocument
 
 
 def delete_computers_in_error_stopped_ended_state(collection, site, experiment, client, info, logger=None):
-    cursor = collection.find({'site': site, 'experiment': experiment,'state': {'$in': ['ENDED', 'ERROR', 'STOPPED']}})
+    cursor = collection.find({'site': site, 'experiment': experiment, 'state': {'$in': ['ENDED', 'ERROR', 'STOPPED']}})
     for vm in cursor:
-        params = copy.deepcopy(info)
-        params['identifier'] = vm['id']
         if logger is not None:
             logger.info("Deleting VM %s with state ENDED/ERROR/STOPPED" % vm['hostname'])
-        client.delete(params)
-        collection.find_one_and_update({'hostname': vm['hostname']},
+        client.delete(vm['id'])
+        collection.find_one_and_update({'id': vm['id']},
                                        {'$set': {'state': 'DELETED'}},
                                        return_document=ReturnDocument.AFTER)
 
@@ -24,27 +22,23 @@ def delete_computers_lost_heartbeat(collection, site, experiment, client, info, 
                                 'heartbeat': {'$lt': now}})
 
     for vm in cursor:
-        params = copy.deepcopy(info)
-        params['identifier'] = vm['id']
         if logger is not None:
             logger.info("Deleting VM %s which lost heartbeat" % vm['hostname'])
-        client.delete(params)
-        collection.find_one_and_update({'hostname':vm['hostname']},
+        client.delete(vm['id'])
+        collection.find_one_and_update({'id': vm['id']},
                                          {'$set': {'state': 'DELETED'}},
                                          return_document=ReturnDocument.AFTER)
 
 
 def delete_computers_not_started(collection, site, experiment, client, info, logger=None):
     now = int(moment.now().subtract('seconds', info['boot_time']).epoch(rounding=True))
-    cursor = collection.find({'site':site, 'experiment':experiment, 'state': 'CREATING', 'createdTime':{'$lt': now}})
+    cursor = collection.find({'site': site, 'experiment': experiment, 'state': 'CREATING', 'createdTime': {'$lt': now}})
     for vm in cursor:
-        params = copy.deepcopy(info)
-        params['identifier'] = vm['id']
         if logger is not None:
             logger.info("Deleting VM %s which not BOOT" % vm['hostname'])
-        client.delete(params)
-        collection.find_one_and_update({'hostname': vm['hostname']},
-                                         {'$set': {'state': 'DELETED'}})
+        client.delete(vm['id'])
+        collection.find_one_and_update({'id': vm['id']},
+                                       {'$set': {'state': 'DELETED'}})
 
 
 def delete_computers_booted_and_not_started(collection, site, experiment, client, info, logger=None):
@@ -54,7 +48,7 @@ def delete_computers_booted_and_not_started(collection, site, experiment, client
         if logger is not None:
             logger.info("Deleting VM %s which not START" % vm['hostname'])
         client.delete(vm['id'])
-        collection.find_one_and_update({'hostname': vm['hostname']},
+        collection.find_one_and_update({'id': vm['id']},
                                        {'$set': {'state': 'DELETED'}})
 
 
