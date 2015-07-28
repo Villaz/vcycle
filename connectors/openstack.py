@@ -33,7 +33,7 @@ class Openstack(CloudConnector):
         :return List of VMs
         """
         try:
-            serversList = self.servers.list(detailed=True)
+            serversList = self.client.servers.list(detailed=True)
         except Exception,e:
             raise CloudException(e.message)
 
@@ -56,8 +56,11 @@ class Openstack(CloudConnector):
         """
         try:
             self.client.servers.delete(identifier)
-        except Exception,e:
-            raise CloudException(e.message)
+        except Exception, e:
+            if 'Instance could not be found' in e.message:
+                return
+            else:
+                raise CloudException(e.message)
 
     def create(self, **kwargs):
         """

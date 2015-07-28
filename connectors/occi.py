@@ -138,10 +138,10 @@ class Occi(CloudConnector):
             vm = {'id':None, 'hostname': kwargs['hostname'], 'state': 'CREATING' }
             if 'Location' in response.headers:
                 vm['id'] = response.headers['Location']
-                vm['id'] = vm['id'][vm['id'].find("/")+1:]
+                vm['id'] = vm['id'][vm['id'].rfind("/")+1:]
             elif 'location' in response.headers:
                 vm['id'] = response.headers['location']
-                vm['id'] = vm['id'][vm['id'].find("/")+1:]
+                vm['id'] = vm['id'][vm['id'].rfind("/")+1:]
             else:
                 vm['id'] = response.text[response.text.find(":")+1:].rstrip()
         return vm

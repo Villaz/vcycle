@@ -58,7 +58,7 @@ class Cycle:
 
         try:
             list_vms_provider = self.client.list(self.params['prefix'])
-        except Exception,e:
+        except Exception, e:
             if self.logger is not None:
                 self.logger.error(e.message)
             return
@@ -93,7 +93,6 @@ class Cycle:
             self.create(created + 1)
         except Exception,e:
             self.logger.error(e.message) if self.logger is not None else False
-
 
     def __create_vm(self):
         """ Create a new VM

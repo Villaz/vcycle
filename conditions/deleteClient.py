@@ -8,7 +8,11 @@ def drop_error_stopped_vms(list_servers, collection, site, experiment, client, i
         if vm['state'] in ['ERROR', 'STOPPED', 'ENDED']:
             if logger:
                 logger.info("Deleting VM %s with bad state %s", vm['id'], vm['state'])
-            client.delete(vm['id'])
+            try:
+                client.delete(vm['id'])
+            except Exception as ex:
+                if logger:
+                    logger.error("Error deleting vm %s", vm['hostname'])
 
 
 def drop_servers_not_in_db(list_servers, collection, site, experiment, client, info, logger=None):
@@ -39,7 +43,7 @@ def db_servers_where_provider_has_status_error_stopped(list_servers, collection,
         if vm['state'] in ['STOPPED', 'ERROR', 'ENDED']:
             if logger:
                 logger.info("VM %s with state %s", vm['hostname'], vm['state'])
-            ids.append(vm['ids'])
+            ids.append(vm['id'])
     cursor = collection.find({'id': {'$in': ids},
                               'state': {'$nin': ['DELETED','ENDED']}})
     for vm in cursor:
