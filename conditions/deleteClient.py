@@ -10,7 +10,7 @@ def drop_error_stopped_vms(list_servers, collection, site, experiment, client, i
                 logger.info("Deleting VM %s with bad state %s", vm['id'], vm['state'])
             try:
                 client.delete(vm['id'])
-            except Exception as ex:
+            except BaseException, ex:
                 if logger:
                     logger.error("Error deleting vm %s", vm['hostname'])
 

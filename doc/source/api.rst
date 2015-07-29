@@ -11,7 +11,7 @@ API
 Main
 -------------------
 
-.. automodule:: plugins.main
+.. automodule:: vcycle.main
     :members:
     :undoc-members:
     :show-inheritance:
@@ -20,7 +20,7 @@ Main
 Vcycle
 ---------------------
 
-.. automodule:: plugins.vcycle
+.. automodule:: vcycle.vcycle
     :members:
     :undoc-members:
     :show-inheritance:

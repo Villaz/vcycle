@@ -4,7 +4,7 @@ Connectors
 Azure
 -------------------------------
 
-.. automodule:: plugins.connectors.azure
+.. automodule:: vcycle.connectors.azure
     :members:
     :undoc-members:
     :show-inheritance:
@@ -12,7 +12,7 @@ Azure
 Cloudconnector
 ----------------------------------------
 
-.. automodule:: plugins.connectors.cloudconnector
+.. automodule:: vcycle.connectors.cloudconnector
     :members:
     :undoc-members:
     :show-inheritance:
@@ -20,7 +20,7 @@ Cloudconnector
 Dbce
 ------------------------------
 
-.. automodule:: plugins.connectors.dbce
+.. automodule:: vcycle.connectors.dbce
     :members:
     :undoc-members:
     :show-inheritance:
@@ -28,7 +28,7 @@ Dbce
 Occi
 ------------------------------
 
-.. automodule:: plugins.connectors.occi
+.. automodule:: vcycle.connectors.occi
     :members:
     :undoc-members:
     :show-inheritance:
@@ -36,7 +36,7 @@ Occi
 Openstack
 -----------------------------------
 
-.. automodule:: plugins.connectors.openstack
+.. automodule:: vcycle.connectors.openstack
     :members:
     :undoc-members:
     :show-inheritance:

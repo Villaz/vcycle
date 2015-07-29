@@ -4,7 +4,7 @@ Conditions
 Delete
 --------------------------------
 
-.. automodule:: plugins.conditions.delete
+.. automodule:: vcycle.conditions.delete
     :members:
     :undoc-members:
     :show-inheritance:
@@ -12,7 +12,7 @@ Delete
 DeleteClient
 --------------------------------------
 
-.. automodule:: plugins.conditions.deleteClient
+.. automodule:: vcycle.conditions.deleteClient
     :members:
     :undoc-members:
     :show-inheritance:

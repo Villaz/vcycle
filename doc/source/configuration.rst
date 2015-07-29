@@ -182,3 +182,51 @@ Like in the experiment part, you are free to add new parameters.
       start_time: 10000 #Time in seconds between the machine starts and the job starts
       heartbeat: 700 #Time in seconds between heartbearts.
       wall_time: 20000 #Maximum vm lifetime.
+
+
+Legacy Configuration
+======================
+
+Vcycle also supports the old configuration file.
+
+The file looks like:
+
+.. code-block:: python
+
+  [db mongo]
+  url = "mongodb://xxx"
+
+
+  [tenancy dbce dbceExperiment]
+  type = "dbce"
+  url = "https://api.cloud.exchange"
+  key = "XYZ"
+  version = "v0"
+  max_machines = 2
+
+  [vmtype dbce dbceExperiment DBCE]
+  max_machines = 2
+  backoff_seconds = 1000
+  fizzle_seconds = 1000
+  max_wallclock_seconds = 200000
+  heartbeat_seconds = 9500
+  platform: "1"
+  flavor_name: ""
+  image_name: ""
+  network: ""
+  public_key: ""
+
+
+
+In this configuration file, you need to see a couple of things:
+
+- The file must be in /etc/vcycle.conf
+- The user_data files are stored in /var/lib/vcycle/user_data/ with name TENANT:EXPERIMENT:QUEUE.
+- The [db mongo] section is mandatory.
+- The tenancy section initializes the name of the tenant and the experiment.
+- The vmtype section indicates the name of the tenant, the name of the experiment and the QUEUE to use in the experiment
+
+In this case, for example, we are telling to vcycle that the vmtype with the tenancy dbce and  with experiment dbceExperiment
+will execute a job in DBCE queue with the given parameters.
+
+**IMPORTANT: user_data is a text file, the template user_data is not supported in legacy mode.**

@@ -4,7 +4,7 @@ Db
 Capped module
 ------------------------
 
-.. automodule:: plugins.db.capped
+.. automodule:: vcycle.db.capped
     :members:
     :undoc-members:
     :show-inheritance:

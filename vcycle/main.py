@@ -125,10 +125,13 @@ def get_log(site, experiment):
 def start_process():
     global db, configuration, connectors, queue, processes, locks
 
-    try:
-        configuration = yaml.load(open('../conf/infinity.conf'))
-    except Exception as ex:
-        get_log("server", "server").error(str(ex))
+    #try:
+    #    configuration = yaml.load(open('../conf/infinity.conf'))
+    #except Exception as ex:
+    #    get_log("server", "server").error(str(ex))
+
+    from config import load
+    configuration = load.load_configuration(get_log("server", "server"))
 
     client = MongoClient(configuration['vcycle']['db']['mongo']['url'])
     db = client.infinity.computer_test

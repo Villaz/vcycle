@@ -26,9 +26,9 @@ setup(
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    version='1.0.0',
+    version='0.6.0',
 
-    description='Vcycle interfaces plugins',
+    description='Vcycle',
     #long_description=long_description,
 
     # The project's main homepage.
@@ -66,7 +66,7 @@ setup(
 
     scripts=['vcycle.py'],
 
-    packages=['conditions', 'connectors', 'db', 'vcycle'],
+    packages=['conditions', 'connectors', 'db', 'vcycle', 'config'],
 
     install_requires=[
         'requests',

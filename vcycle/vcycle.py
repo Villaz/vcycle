@@ -113,10 +113,13 @@ class Cycle:
             params_to_create[params_to_create['experiment']] = True
         params_to_create['experiment'] = self.experiment
 
-        env = Environment(loader=PackageLoader('contextualization', ''))
-        template = env.get_template(params_to_create['user_data'])
-        params_to_create['user_data'] = template.render(params_to_create)
-        open("../tmp/%s" % str(uuid.uuid4()),'w').write(params_to_create['user_data'])
+        # If user_data starts with #! is a script not name template
+        if '#!' not in params_to_create['user_data']:
+            env = Environment(loader=PackageLoader('contextualization', ''))
+            template = env.get_template(params_to_create['user_data'])
+            params_to_create['user_data'] = template.render(params_to_create)
+            open("../tmp/%s" % str(uuid.uuid4()), 'w').write(params_to_create['user_data'])
+
         params_to_create['logger'] = self.logger if self.logger is not None else False
 
         server = self.client.create(**params_to_create)
