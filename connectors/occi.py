@@ -66,6 +66,7 @@ class Occi(CloudConnector):
             return []
 
         uris = [line[line.find(":")+2:] for line in response.split("\n")[1:]]
+        uris = ["%s/compute/%s" % (self.params['endpoint'], url[url.rfind("/")+1:]) for url in uris]
 
         import threading
         threadList = []
@@ -160,6 +161,7 @@ class Occi(CloudConnector):
             headers['X-Auth-Token'] = token
 
         try:
+            print uri
             response = requests.get(uri,
                                     cert=self.params['proxy'],
                                     headers=headers,
