@@ -8,8 +8,8 @@ import moment
 import copy
 from conditions import delete as delete_computers
 from conditions import deleteClient as delete_on_provider
+from connectors import cloudconnector
 from jinja2 import Template, Environment, PackageLoader
-
 
 class Cycle:
     """Vcycle Class
@@ -64,11 +64,19 @@ class Cycle:
 
         for function in inspect.getmembers(delete_on_provider, inspect.isfunction):
             self.logger.debug('Executing %s', function[0]) if self.logger is not None else False
-            function[1](list_vms_provider, self.db, self.site, self.experiment, self.client, self.params, self.logger)
+            try:
+                function[1](list_vms_provider, self.db, self.site, self.experiment, self.client, self.params, self.logger)
+            except cloudconnector.CloudException as e:
+                if self.logger:
+                    self.logger.error(str(e))
 
         for function in inspect.getmembers(delete_computers, inspect.isfunction):
             self.logger.debug('Executing %s', function[0]) if self.logger is not None else False
-            function[1](self.db, self.site, self.experiment, self.client, self.params, self.logger)
+            try:
+                function[1](self.db, self.site, self.experiment, self.client, self.params, self.logger)
+            except cloudconnector.CloudException as e:
+                if self.logger:
+                    self.logger.error(str(e))
 
         if not self.__machines_executing_or_only_one_machine_not_started() and \
                self.__deployed_machines_less_than_maximum():
@@ -121,14 +129,17 @@ class Cycle:
 
         params_to_create['logger'] = self.logger if self.logger is not None else False
 
-        server = self.client.create(**params_to_create)
-        self.db.insert({'id': server['id'],
-                        'hostname': server['hostname'],
-                        'state': server['state'],
-                        'site': self.site,
-                        'experiment': self.experiment,
-                        'createdTime': int(moment.now().epoch())})
-        self.logger.info(" VM %s has been created", server['hostname']) if self.logger is not None else False
+        try:
+            server = self.client.create(**params_to_create)
+            self.db.insert({'id': server['id'],
+                            'hostname': server['hostname'],
+                            'state': server['state'],
+                            'site': self.site,
+                            'experiment': self.experiment,
+                            'createdTime': int(moment.now().epoch())})
+            self.logger.info(" VM %s has been created", server['hostname']) if self.logger is not None else False
+        except cloudconnector.CloudException as ex:
+            self.logger.error(str(ex))
 
     def list(self):
         """ List all VMs deployed in the provider

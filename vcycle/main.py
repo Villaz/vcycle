@@ -36,8 +36,12 @@ def load_connectors():
     global connectors
     for connector in configuration['vcycle']['connectors']:
         type = configuration['vcycle']['connectors'][connector]['type']
-        module = __import__("connectors."+type)
-        class_ = getattr(module, type)
+        try:
+            module = __import__("connectors."+type)
+            class_ = getattr(module, type)
+        except ImportError:
+            module = __import__("connectors.%s_connector" % type)
+            class_ = getattr(module, "%s_connector" % type)
         connectors[connector] = class_.create(**configuration['vcycle']['connectors'][connector])
 
 
@@ -116,7 +120,7 @@ def get_log(site, experiment):
     logger = logging.getLogger(site)
     if len(logger.handlers) == 0:
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        handler = logging.FileHandler("%s-%s.log" % (site, date.today().strftime('%d%m%Y')))
+        handler = logging.FileHandler("/var/log/vcycle/%s/%s-%s.log" % (experiment, site, date.today().strftime('%d%m%Y')))
         handler.setLevel(logging.DEBUG)
         handler.setFormatter(formatter)
         logger.addHandler(handler)
@@ -125,11 +129,6 @@ def get_log(site, experiment):
 
 def start_process():
     global db, configuration, connectors, queue, processes, locks
-
-    #try:
-    #    configuration = yaml.load(open('../conf/infinity.conf'))
-    #except Exception as ex:
-    #    get_log("server", "server").error(str(ex))
 
     from config import load
     configuration = load.load_configuration(get_log("server", "server"))
