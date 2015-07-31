@@ -8,10 +8,15 @@ https://github.com/pypa/sampleproject
 from setuptools import setup, find_packages
 # To use a consistent encoding
 from codecs import open
-from os import path
+from os import path, walk
 import sys
 
 here = path.abspath(path.dirname(__file__))
+
+# Add contextualization dir files
+install_path = '/etc/vcycle/'
+datafiles = [(path.join(install_path, root), [path.join(root, f) for f in files])
+    for root, dirs, files in walk("contextualization")]
 
 if not hasattr(sys, 'version_info') or sys.version_info < (2, 7, 10):
     raise SystemExit("Vcycle requires Python version 2.7.10 or above.")
@@ -21,7 +26,7 @@ with open(path.join(here, 'DESCRIPTION.rst'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(
-    name='vcycle Plugins',
+    name='Vcycle',
 
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see

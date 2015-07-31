@@ -18,7 +18,7 @@ def drop_error_stopped_vms(list_servers, collection, site, experiment, client, i
 def drop_servers_not_in_db(list_servers, collection, site, experiment, client, info, logger=None):
     ids = [vm['id'] for vm in list_servers]
     for id in ids:
-        if collection.find({'id': id}).count() == 0:
+        if collection.find({'id': id, 'site':site, 'experiment':experiment, 'state':{'$nin':['DELETED']}}).count() == 0:
             if logger:
                 logger.info("VM %s not in DB. Delete from provider", id)
             client.delete(id)

@@ -1,6 +1,6 @@
 __author__ = 'Luis Villazon Esteban'
 
-from cloudconnector import CloudConnector
+from cloudconnector import CloudConnector , CloudException
 import requests
 import time
 import base64
@@ -77,7 +77,7 @@ class Occi(CloudConnector):
 
         for th in threadList:
             th.join()
-        return [vm for vm in vms if prefix is None or prefix in vm['hostname']]
+        return [vm for vm in vms if prefix is None or prefix in vm['hostname'] or vm['hostname'] == 'UNKNOWN']
 
     def delete(self, identifier):
         """Deletes a VM in the provider
@@ -108,6 +108,10 @@ class Occi(CloudConnector):
         """
         import uuid
         self.__check_token()
+        if kwargs['image'] not in self.categories:
+            raise CloudException("Check the image, it not exists")
+        if kwargs['flavor'] not in self.categories:
+            raise CloudException("Check the flavor, it not exists")
         data = 'Category: compute;scheme="http://schemas.ogf.org/occi/infrastructure#";class="kind";location="/compute/";title="Compute Resource"\n'
         data += 'Category: %s;%s;class="mixin";location="/%s"\n' % (kwargs['image'], self.categories[kwargs['image']]['scheme'], kwargs['image'])
         data += 'Category: %s;%s;class="mixin";location="/%s"\n' % (kwargs['flavor'], self.categories[kwargs['flavor']]['scheme'], kwargs['flavor'])
@@ -133,7 +137,7 @@ class Occi(CloudConnector):
                       cert=self.params['proxy'],
                       verify=False)
         if response.status_code not in [200, 201]:
-            raise BaseException(response.text)
+            raise CloudException(response.text)
         else:
             vm = {'id':None, 'hostname': kwargs['hostname'], 'state': 'CREATING' }
             if 'Location' in response.headers:
@@ -166,7 +170,10 @@ class Occi(CloudConnector):
                                     timeout=60,
                                     verify=False)
         except requests.Timeout as timeout:
-            computer = {'id': uri[uri.rfind('/')+1:], 'hostname': 'UNKNOWN', 'state': 'UNKNOWN'}
+            id = uri[uri.rfind('/')+1:]
+            if id.startswith('http'):
+                id = uri[uri.rfind('/')+1:]
+            computer = {'id': id, 'hostname': 'UNKNOWN', 'state': 'UNKNOWN'}
             vms.append(computer)
             return
 

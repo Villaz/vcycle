@@ -17,7 +17,8 @@ def parse_params(site, experiment):
             continue
         if option == 'ganglia':
             ganglia = configuration['vcycle']['experiments'][experiment]['ganglia']
-            configuration['vcycle']['experiments'][experiment]['ganglia'] = configuration['vcycle']['ganglia'][ganglia]
+            if not isinstance(ganglia, dict):
+                configuration['vcycle']['experiments'][experiment]['ganglia'] = configuration['vcycle']['ganglia'][ganglia]
         configuration['vcycle']['experiments'][experiment]['sites'][site][option] = configuration['vcycle']['experiments'][experiment][option]
 
     configuration['vcycle']['experiments'][experiment]['sites'][site]['db'] = configuration['vcycle']['db']['mongo']['url']

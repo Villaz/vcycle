@@ -5,9 +5,10 @@ import yaml
 import os.path
 
 def load_configuration(logger=None):
-    if os.path.isfile('/etc/vcycle/vcycle.conf'):
+    if os.path.isfile('../conf/infinity.conf'):
+    #if os.path.isfile('/etc/vcycle/vcycle.conf'):
         try:
-            return yaml.load(open('../conf/infinity2.conf'))
+            return yaml.load(open('../conf/infinity.conf'))
         except Exception as ex:
             if logger is not None:
                 logger.error(str(ex))

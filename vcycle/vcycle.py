@@ -52,8 +52,7 @@ class Cycle:
         Ones the deletion has finished, the function checks if the condition is optimal to create a new or a group
         of new VMs
 
-
-        """
+         """
         self.list()
 
         try:
@@ -138,7 +137,7 @@ class Cycle:
         cur = self.db.find({'site': self.site, 'experiment': self.experiment, 'state': {'$nin': ['DELETED']}})
         states = {'ERROR': 0, 'CREATING': 0, 'BOOTED': 0, 'STARTED': 0, 'ENDED': 0}
         for computer in cur:
-            self.logger.info(computer) if self.logger is not None else False
+            self.logger.info("%s\t%s" % (computer['hostname'], computer['state'])) if self.logger is not None else False
             states[computer['state']] += 1
         if self.logger is not None:
             self.logger.info("CREATING: %s ; BOOTED: %s ; STARTED: %s ; ERROR: %s ; ENDED: %s" % (states['CREATING'],
@@ -155,9 +154,7 @@ class Cycle:
         """
         try:
             identifier = self.db.find_one({'hostname': hostname})['id']
-            to_delete = copy.deepcopy(self.params)
-            to_delete['identifier'] = identifier
-            self.client.delete(to_delete)
+            self.client.delete(identifier)
             self.db.find_one_and_update({'id':identifier},
                                     {'$set': {'state': 'DELETED'}})
             self.logger.info("DELETED VM %s with state ENDED", identifier) if self.logger is not None else False

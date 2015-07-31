@@ -47,7 +47,7 @@ class Azure(CloudConnector):
             output, error = process.communicate()
             alarm(0)
         except Alarm:
-            kill(process.pid)
+            kill(process.pid, SIGKILL)
             raise CloudException("Error retrieving list")
 
         if len(error) > 0:
@@ -85,7 +85,7 @@ class Azure(CloudConnector):
             output, error = process.communicate()
             alarm(0)
         except Alarm:
-            kill(process.pid)
+            kill(process.pid, SIGKILL)
             raise CloudException("Error deleting VM %s" % identifier)
 
         if len(error) > 0:
@@ -116,7 +116,7 @@ class Azure(CloudConnector):
                 output, error = process.communicate()
                 alarm(0)
             except Alarm:
-                kill(process.pid)
+                kill(process.pid, SIGKILL)
                 raise CloudException("Error creating VM %s" % kwargs['hostname'])
 
             if 'logger' in kwargs:
@@ -190,7 +190,7 @@ class Azure(CloudConnector):
             output, error = process.communicate()
             alarm(0)
         except Alarm:
-            kill(process.pid)
+            kill(process.pid, SIGKILL)
             raise CloudException("Error creating service %s" % name)
         if len(error) > 0:
             raise CloudException(error)
@@ -213,7 +213,7 @@ class Azure(CloudConnector):
             output, error = process.communicate()
             alarm(0)
         except Alarm:
-            kill(process.pid)
+            kill(process.pid, SIGKILL)
             raise CloudException("Error creating certificate to service %s" % name)
         if len(error) > 0:
             raise CloudException(error)
@@ -228,7 +228,7 @@ class Azure(CloudConnector):
             output, error = process.communicate()
             alarm(0)
         except Alarm:
-            kill(process.pid)
+            kill(process.pid, SIGKILL)
             raise CloudException("Error retrieving certificate from service %s" % name)
         if len(error) > 0:
             raise CloudException(error)
