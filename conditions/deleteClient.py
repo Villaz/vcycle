@@ -1,6 +1,7 @@
 __author__ = 'Luis Villazon Esteban'
 
 import copy
+from connectors import cloudconnector
 
 
 def drop_error_stopped_vms(list_servers, collection, site, experiment, client, info, logger=None):
@@ -10,7 +11,7 @@ def drop_error_stopped_vms(list_servers, collection, site, experiment, client, i
                 logger.info("Deleting VM %s with bad state %s", vm['id'], vm['state'])
             try:
                 client.delete(vm['id'])
-            except BaseException, ex:
+            except cloudconnector.CloudException, ex:
                 if logger:
                     logger.error("Error deleting vm %s", vm['hostname'])
 
@@ -21,7 +22,12 @@ def drop_servers_not_in_db(list_servers, collection, site, experiment, client, i
         if collection.find({'id': id, 'site':site, 'experiment':experiment, 'state':{'$nin':['DELETED']}}).count() == 0:
             if logger:
                 logger.info("VM %s not in DB. Delete from provider", id)
-            client.delete(id)
+            try:
+                client.delete(id)
+            except cloudconnector.CloudException as ex:
+                if logger is not None:
+                    logger.warn(str(ex))
+
 
 
 def drop_db_servers_not_in_provider(list_servers, collection, site, experiment, client, info, logger=None):

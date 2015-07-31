@@ -60,6 +60,7 @@ class Occi(CloudConnector):
         response = requests.get(self.params['endpoint']+"/compute/",
                                 cert=self.params['proxy'],
                                 headers=headers,
+                                timeout=60,
                                 verify=False)
         response = response.text
         if response is None:
@@ -74,6 +75,7 @@ class Occi(CloudConnector):
         for arg in uris:
             thr = threading.Thread(target=self.__describe, args=(arg, self.token, vms))
             threadList.append(thr)
+            time.sleep(0.1)
             thr.start()
 
         for th in threadList:
@@ -94,9 +96,10 @@ class Occi(CloudConnector):
         response = requests.delete("%s/compute/%s" % (self.params['endpoint'], identifier),
                                 cert=self.params['proxy'],
                                 headers=headers,
+                                timeout=60,
                                 verify=False)
         if response.status_code != 200:
-            raise BaseException(response.text)
+            raise CloudException(response.text)
 
     def create(self, **kwargs):
         """Creates a new VM in the provider. Received as parameter a dictionary of values.
@@ -136,6 +139,7 @@ class Occi(CloudConnector):
                       data=data,
                       headers=headers,
                       cert=self.params['proxy'],
+                      timeout=60,
                       verify=False)
         if response.status_code not in [200, 201]:
             raise CloudException(response.text)

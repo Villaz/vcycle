@@ -56,7 +56,9 @@ class Cycle:
         self.list()
 
         try:
+            self.logger.debug("Listing VMs from provider")
             list_vms_provider = self.client.list(self.params['prefix'])
+            self.logger.debug("Ended listing VMs from provider")
         except Exception, e:
             if self.logger is not None:
                 self.logger.error(e.message)

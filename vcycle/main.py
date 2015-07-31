@@ -97,17 +97,19 @@ def do_cycle(processes, locks):
         cycle.iterate()
         locks[lock].release()
 
-    time.sleep(5*60)
+    time.sleep(10*60)
     while True:
         for lock in locks:
             # If the thread didn't finish in 3 minutes, something is wrong and the thread is deleted
             experiment, site = lock.split(":")
             if processes["%s:%s" % (experiment.upper(), site.upper())]['process'].is_alive():
+                get_log(site, experiment).warn("Terminating process %s %s", site, experiment)
                 processes["%s:%s" % (experiment.upper(), site.upper())]['process'].terminate()
+                locks[lock].release()
             process = multiprocessing.Process(target=init, args=(experiment, site, lock,))
             process.start()
             processes["%s:%s" % (experiment, site)]['process'] = process
-        time.sleep(5*60)
+        time.sleep(10*60)
 
 
 def get_log(site, experiment):
