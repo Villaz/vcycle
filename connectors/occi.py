@@ -5,6 +5,9 @@ import requests
 import time
 import base64
 from time import mktime
+import logging
+
+logging.getLogger("requests").setLevel(logging.WARNING)
 
 
 class Occi(CloudConnector):

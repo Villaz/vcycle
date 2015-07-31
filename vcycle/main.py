@@ -58,26 +58,32 @@ def init_processing(site, experiment):
 
 
 def process_queue(queue, locks):
+
+    def process(message):
+        get_log('server', 'server').info("Received message %s from %s", message['state'], message['hostname'])
+        site = message['site']
+        experiment = message['experiment']
+        locks["%s:%s" % (experiment.upper(), site.upper())].acquire()
+        get_log('server', 'server').debug("Acquired lock %s:%s", experiment.upper(), site.upper())
+        connector = connectors[configuration['vcycle']['experiments'][experiment]['sites'][site]['connector']]
+        cycle = vcycle.Cycle(client=connector,
+                             db=db,
+                             site=site,
+                             experiment=experiment,
+                             params=configuration['vcycle']['experiments'][experiment]['sites'][site],
+                             logger=get_log(site, experiment))
+        if message['state'] == 'END':
+            cycle.delete(message['hostname'])
+        cycle.create()
+        locks["%s:%s" % (experiment.upper(), site.upper())].release()
+        get_log('server', 'server').debug("Released lock %s:%s", experiment.upper(), site.upper())
+
     while True:
         try:
             message = queue.get()
             if 'state' in message and message['state'] in ['BOOT', 'END']:
-                get_log('server', 'server').info("Received message %s from %s", message['state'], message['hostname'])
-                site = message['site']
-                experiment = message['experiment']
-
-                locks["%s:%s" % (experiment.upper(), site.upper())].acquire()
-                connector = connectors[configuration['vcycle']['experiments'][experiment]['sites'][site]['connector']]
-                cycle = vcycle.Cycle(client=connector,
-                                     db=db,
-                                     site=site,
-                                     experiment=experiment,
-                                     params=configuration['vcycle']['experiments'][experiment]['sites'][site],
-                                     logger=get_log(site, experiment))
-                if message['state'] == 'END':
-                    cycle.delete(message['hostname'])
-                cycle.create()
-                locks["%s:%s" % (experiment.upper(), site.upper())].release()
+                process = multiprocessing.Process(target=process, args=(message,))
+                process.start()
         except Exception,e:
             get_log('main','main').error(e.message)
             pass
@@ -87,6 +93,7 @@ def do_cycle(processes, locks):
 
     def init(experiment, site, lock):
         locks[lock].acquire()
+        get_log('server', 'server').debug("Adquired lock %s", lock)
         connector = connectors[configuration['vcycle']['experiments'][experiment]['sites'][site]['connector']]
         cycle = vcycle.Cycle(client=connector,
                              db=db,
@@ -96,12 +103,15 @@ def do_cycle(processes, locks):
                              logger=get_log(site, experiment))
         cycle.iterate()
         locks[lock].release()
+        get_log('server', 'server').debug("Released lock %s", lock)
 
-    time.sleep(10*60)
+    time.sleep(1*60)
     while True:
         for lock in locks:
             # If the thread didn't finish in 3 minutes, something is wrong and the thread is deleted
             experiment, site = lock.split(":")
+            print experiment
+            print site
             if processes["%s:%s" % (experiment.upper(), site.upper())]['process'].is_alive():
                 get_log(site, experiment).warn("Terminating process %s %s", site, experiment)
                 processes["%s:%s" % (experiment.upper(), site.upper())]['process'].terminate()
@@ -109,7 +119,7 @@ def do_cycle(processes, locks):
             process = multiprocessing.Process(target=init, args=(experiment, site, lock,))
             process.start()
             processes["%s:%s" % (experiment, site)]['process'] = process
-        time.sleep(10*60)
+        time.sleep(1*60)
 
 
 def get_log(site, experiment):

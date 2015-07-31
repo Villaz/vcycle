@@ -8,12 +8,12 @@ def drop_error_stopped_vms(list_servers, collection, site, experiment, client, i
     for vm in list_servers:
         if vm['state'] in ['ERROR', 'STOPPED', 'ENDED']:
             if logger:
-                logger.info("Deleting VM %s with bad state %s", vm['id'], vm['state'])
+                logger.info("Deleting VM %s with bad state %s", vm['hostname'], vm['state'])
             try:
                 client.delete(vm['id'])
             except cloudconnector.CloudException, ex:
                 if logger:
-                    logger.error("Error deleting vm %s", vm['hostname'])
+                    logger.warn("Error deleting vm %s", vm['hostname'])
 
 
 def drop_servers_not_in_db(list_servers, collection, site, experiment, client, info, logger=None):
