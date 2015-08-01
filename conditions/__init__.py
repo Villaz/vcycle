@@ -24,7 +24,8 @@ class DeleteBase(object):
         servers = None
 
         for method in dir(self):
-            if isinstance(getattr(self, method), types.MethodType) and not method.startswith('__') and method != 'execute':
+            if isinstance(getattr(self, method), types.MethodType) and not method.startswith('__') and method != 'execute_all':
+                print "Executing %s" % method
                 if servers is None:
                     servers = getattr(self, method)(list_servers)
                 else:
@@ -51,9 +52,12 @@ class DeleteBase(object):
         servers = None
         modules = glob.glob(os.path.dirname(__file__)+"/*.py")
         for cls in [os.path.basename(f)[:-3] for f in modules if f.find("__") < 0 and f.find('test') < 0]:
-            module = __import__(cls)
-            class_ = getattr(module, "Delete")
-            obj = class_(collection=collection, site=site, experiment=experiment, client=client, logger=logger)
+            print cls
+            module = __import__("conditions.%s" % cls)
+            submodule = getattr(module, cls)
+
+            delete = getattr(submodule,"Delete")
+            obj = delete(collection=collection, site=site, experiment=experiment, client=client, info=info, logger=logger)
             try:
                 if servers is None:
                     servers = obj.execute_all(list_servers)
@@ -63,4 +67,3 @@ class DeleteBase(object):
                 if logger is not None:
                     logger.warn(str(ex))
         return servers
-

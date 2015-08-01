@@ -7,7 +7,7 @@ from pymongo import ReturnDocument
 
 class Delete(DeleteBase):
 
-    def __init__(self, collection=None, site="", experiment="", client=None, info="", logger=None):
+    def __init__(self, collection=None, site="", experiment="", client=None, info=[], logger=None):
         DeleteBase.__init__(self,
                             collection=collection,
                             site=site,

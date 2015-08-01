@@ -20,6 +20,10 @@ class Azure(CloudConnector):
     def list(self, prefix=None):
         """ Reads information from provider and returns a list of all deployed vms
 
+        ProvisioningFailed has been marked as good state.
+        If the you are using a custom script to contextualize the VM,
+        Azure probably returns this state, but the VM is running and the contextualization file will be executed.
+
         :param prefix: Only returns vms with the prefix in their hostname
         :type prefix: string
         :return List of VMs
@@ -39,13 +43,16 @@ class Azure(CloudConnector):
 
             status = info.deployments[0].role_instance_list[0].instance_status
             vm = {'id': result.service_name,'hostname': result.service_name}
+            print status
+
             if status in ['Unknown', 'CreatingVM', 'StartingVM', 'CreatingRole', 'StartingRole',
-                                           'ReadyRole', 'BusyRole', 'Preparing']:
+                                           'ReadyRole', 'BusyRole', 'Preparing','ProvisioningFailed']:
                 vm['state'] = 'CREATING'
-            elif status in ['StoppingRole', 'StoppingVM', 'DeletingVM', 'StoppedVM', 'RestartingRole']:
+            elif status in ['StoppingRole', 'StoppingVM', 'DeletingVM',
+                            'StoppedVM', 'RestartingRole','StoppedDeallocated']:
                 vm['state'] = 'STOPPED'
             else:
-                vm['state'] = 'ERROR'
+                vm['state'] = 'CREATING'
             vms.append(vm)
         return vms
 

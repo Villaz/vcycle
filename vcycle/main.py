@@ -105,21 +105,19 @@ def do_cycle(processes, locks):
         locks[lock].release()
         get_log('server', 'server').debug("Released lock %s", lock)
 
-    time.sleep(1*60)
     while True:
         for lock in locks:
             # If the thread didn't finish in 3 minutes, something is wrong and the thread is deleted
             experiment, site = lock.split(":")
-            print experiment
-            print site
-            if processes["%s:%s" % (experiment.upper(), site.upper())]['process'].is_alive():
+            key = "%s:%s" % (experiment.upper(), site.upper())
+            if key in processes and processes[key]['process'].is_alive():
                 get_log(site, experiment).warn("Terminating process %s %s", site, experiment)
                 processes["%s:%s" % (experiment.upper(), site.upper())]['process'].terminate()
                 locks[lock].release()
             process = multiprocessing.Process(target=init, args=(experiment, site, lock,))
             process.start()
-            processes["%s:%s" % (experiment, site)]['process'] = process
-        time.sleep(1*60)
+            processes["%s:%s" % (experiment, site)] = {'process': process}
+        time.sleep(10*60)
 
 
 def get_log(site, experiment):
@@ -163,9 +161,9 @@ def start_process():
     # Create the clients
     for experiment in configuration['vcycle']['experiments']:
         for site in configuration['vcycle']['experiments'][experiment]['sites']:
-            process = multiprocessing.Process(target=init_processing, args=(site, experiment))
-            process.start()
-            processes["%s:%s" % (experiment.upper(), site.upper())] = {'process': process}
+            #process = multiprocessing.Process(target=init_processing, args=(site, experiment))
+            #process.start()
+            #processes["%s:%s" % (experiment.upper(), site.upper())] = {'process': None}
             locks["%s:%s" % (experiment.upper(), site.upper())] = threading.Lock()
             pass
 
