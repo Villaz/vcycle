@@ -34,7 +34,7 @@ def start_process(conf=u'/etc/vcycle/conf'):
 
     multiprocessing.Process(target=capped.start_listen, args=(capped_collection, queue,)).start()
     multiprocessing.Process(target=process_queue, args=(queue, locks,)).start()
-    do_cycle(processes, locks)
+    multiprocessing.Process(target=do_cycle, args=(processes, locks,)).start()
 
 
 def load_connectors():
