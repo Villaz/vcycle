@@ -33,8 +33,8 @@ def start_process(conf=u'/etc/vcycle/conf'):
             locks["%s:%s" % (experiment.upper(), site.upper())] = threading.Lock()
 
     multiprocessing.Process(target=capped.start_listen, args=(capped_collection, queue,)).start()
-    multiprocessing.Process(target=process_queue, args=(queue, locks,)).start()
-    multiprocessing.Process(target=do_cycle, args=(processes, locks,)).start()
+    multiprocessing.Process(target=process_queue).start()
+    multiprocessing.Process(target=do_cycle).start()
 
 
 def load_connectors():
@@ -110,7 +110,7 @@ def create_client(site, experiment, hostname=None, delete=False, multiple=False)
 def get_log(site="server", experiment="server"):
     from datetime import date
     try:
-        os.mkdir("/var/log/vcycle/%s/" % experiment)
+        os.makedirs("/var/log/vcycle/%s/" % experiment)
     except OSError:
         print "Error creating log path"
     logging.basicConfig(level=logging.DEBUG)
@@ -140,5 +140,5 @@ if __name__ == "__main__":
     processes = {}
     locks = {}
 
-    start_process(conf=args.conf)
+    start_process(conf='../conf/infinity.conf')
 
