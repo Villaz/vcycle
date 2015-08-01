@@ -1,149 +1,23 @@
 __author__ = 'Luis Villazon Esteban'
 
-from pymongo import MongoClient
-import yaml
 import multiprocessing
 import logging
 import os
-import vcycle
 import time
-from db import capped
 import threading
+import argparse
+import configuration
+from pymongo import MongoClient
+
+import vcycle
+from db import capped
 
 
-def parse_params(site, experiment):
-    for option in configuration['vcycle']['experiments'][experiment]:
-        if option == 'sites':
-            continue
-        if option == 'ganglia':
-            ganglia = configuration['vcycle']['experiments'][experiment]['ganglia']
-            if not isinstance(ganglia, dict):
-                configuration['vcycle']['experiments'][experiment]['ganglia'] = configuration['vcycle']['ganglia'][ganglia]
-        configuration['vcycle']['experiments'][experiment]['sites'][site][option] = configuration['vcycle']['experiments'][experiment][option]
+def start_process(conf=u'/etc/vcycle/conf'):
+    global db, configuration_file, connectors, queue, processes, locks
 
-    configuration['vcycle']['experiments'][experiment]['sites'][site]['db'] = configuration['vcycle']['db']['mongo']['url']
-    connector = configuration['vcycle']['experiments'][experiment]['sites'][site]['connector']
-
-    #load files
-    for option in configuration['vcycle']['experiments'][experiment]['sites'][site]:
-        aux = configuration['vcycle']['experiments'][experiment]['sites'][site]
-        if isinstance(aux[option], basestring) and aux[option].startswith('file://'):
-            file = aux[option].replace('file://','')
-            configuration['vcycle']['experiments'][experiment]['sites'][site][option] = open(file).read()
-
-
-def load_connectors():
-    global connectors
-    for connector in configuration['vcycle']['connectors']:
-        type = configuration['vcycle']['connectors'][connector]['type']
-        try:
-            module = __import__("connectors."+type)
-            class_ = getattr(module, type)
-        except ImportError:
-            module = __import__("connectors.%s_connector" % type)
-            class_ = getattr(module, "%s_connector" % type)
-        connectors[connector] = class_.create(**configuration['vcycle']['connectors'][connector])
-
-
-def init_processing(site, experiment):
-    global connectors
-    connector = connectors[configuration['vcycle']['experiments'][experiment]['sites'][site]['connector']]
-    cycle = vcycle.Cycle(client=connector,
-                         db=db,
-                         site=site,
-                         experiment=experiment,
-                         params=configuration['vcycle']['experiments'][experiment]['sites'][site],
-                         logger=get_log(site, experiment))
-    cycle.iterate()
-
-
-def process_queue(queue, locks):
-
-    def process(message):
-        get_log('server', 'server').info("Received message %s from %s", message['state'], message['hostname'])
-        site = message['site']
-        experiment = message['experiment']
-        locks["%s:%s" % (experiment.upper(), site.upper())].acquire()
-        get_log('server', 'server').debug("Acquired lock %s:%s", experiment.upper(), site.upper())
-        connector = connectors[configuration['vcycle']['experiments'][experiment]['sites'][site]['connector']]
-        cycle = vcycle.Cycle(client=connector,
-                             db=db,
-                             site=site,
-                             experiment=experiment,
-                             params=configuration['vcycle']['experiments'][experiment]['sites'][site],
-                             logger=get_log(site, experiment))
-        if message['state'] == 'END':
-            cycle.delete(message['hostname'])
-        cycle.create()
-        locks["%s:%s" % (experiment.upper(), site.upper())].release()
-        get_log('server', 'server').debug("Released lock %s:%s", experiment.upper(), site.upper())
-
-    while True:
-        try:
-            message = queue.get()
-            if 'state' in message and message['state'] in ['BOOT', 'END']:
-                process = multiprocessing.Process(target=process, args=(message,))
-                process.start()
-        except Exception,e:
-            get_log('main','main').error(e.message)
-            pass
-
-
-def do_cycle(processes, locks):
-
-    def init(experiment, site, lock):
-        locks[lock].acquire()
-        get_log('server', 'server').debug("Adquired lock %s", lock)
-        connector = connectors[configuration['vcycle']['experiments'][experiment]['sites'][site]['connector']]
-        cycle = vcycle.Cycle(client=connector,
-                             db=db,
-                             site=site,
-                             experiment=experiment,
-                             params=configuration['vcycle']['experiments'][experiment]['sites'][site],
-                             logger=get_log(site, experiment))
-        cycle.iterate()
-        locks[lock].release()
-        get_log('server', 'server').debug("Released lock %s", lock)
-
-    while True:
-        for lock in locks:
-            # If the thread didn't finish in 3 minutes, something is wrong and the thread is deleted
-            experiment, site = lock.split(":")
-            key = "%s:%s" % (experiment.upper(), site.upper())
-            if key in processes and processes[key]['process'].is_alive():
-                get_log(site, experiment).warn("Terminating process %s %s", site, experiment)
-                processes["%s:%s" % (experiment.upper(), site.upper())]['process'].terminate()
-                locks[lock].release()
-            process = multiprocessing.Process(target=init, args=(experiment, site, lock,))
-            process.start()
-            processes["%s:%s" % (experiment, site)] = {'process': process}
-        time.sleep(10*60)
-
-
-def get_log(site, experiment):
-    from datetime import date
-    try:
-        os.mkdir("/var/log/vcycle/%s/" % experiment)
-    except OSError:
-        pass
-    logging.basicConfig(level=logging.DEBUG)
-    logger = logging.getLogger(site)
-    if len(logger.handlers) == 0:
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        handler = logging.FileHandler("/var/log/vcycle/%s/%s-%s.log" % (experiment, site, date.today().strftime('%d%m%Y')))
-        handler.setLevel(logging.DEBUG)
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
-    return logger
-
-
-def start_process():
-    global db, configuration, connectors, queue, processes, locks
-
-    from config import load
-    configuration = load.load_configuration(get_log("server", "server"))
-
-    client = MongoClient(configuration['vcycle']['db']['mongo']['url'])
+    configuration_file = configuration.load(path=conf,logger=get_log())
+    client = MongoClient(configuration_file['vcycle']['db']['mongo']['url'])
     db = client.infinity.computer_test
 
     # Create the connector objects
@@ -153,32 +27,118 @@ def start_process():
         db.create_collection('capped_servers', capped=True, size=2**20, autoIndexId=False)
     capped_collection = client.infinity.capped_servers
 
-    # Parse configuration File
-    for experiment in configuration['vcycle']['experiments']:
-        for site in configuration['vcycle']['experiments'][experiment]['sites']:
-            parse_params(site, experiment)
-
     # Create the clients
-    for experiment in configuration['vcycle']['experiments']:
-        for site in configuration['vcycle']['experiments'][experiment]['sites']:
-            #process = multiprocessing.Process(target=init_processing, args=(site, experiment))
-            #process.start()
-            #processes["%s:%s" % (experiment.upper(), site.upper())] = {'process': None}
+    for experiment in configuration_file['vcycle']['experiments']:
+        for site in configuration_file['vcycle']['experiments'][experiment]['sites']:
             locks["%s:%s" % (experiment.upper(), site.upper())] = threading.Lock()
-            pass
 
     multiprocessing.Process(target=capped.start_listen, args=(capped_collection, queue,)).start()
     multiprocessing.Process(target=process_queue, args=(queue, locks,)).start()
     do_cycle(processes, locks)
 
 
+def load_connectors():
+    global connectors
+    for connector in configuration_file['vcycle']['connectors']:
+        type = configuration_file['vcycle']['connectors'][connector]['type']
+        try:
+            module = __import__("connectors."+type)
+            class_ = getattr(module, type)
+        except ImportError:
+            module = __import__("connectors.%s_connector" % type)
+            class_ = getattr(module, "%s_connector" % type)
+        connectors[connector] = class_.create(**configuration_file['vcycle']['connectors'][connector])
+
+
+def process_queue():
+
+    def process():
+        site = message['site']
+        experiment = message['experiment']
+        if message['state'] == 'END':
+            create_client(site, experiment, hostname=message['hostname'], delete=True, multiple=False)
+        else:
+            create_client(site, experiment, multiple=True)
+
+    while True:
+        try:
+            message = queue.get()
+            if 'state' in message and message['state'] in ['BOOT', 'END']:
+                get_log('server', 'server').info("Received message %s from %s", message['state'], message['hostname'])
+                process = multiprocessing.Process(target=process, args=(message,)).start()
+        except Exception as e:
+            get_log().error(e.message)
+            pass
+
+
+def do_cycle():
+    while True:
+        for lock in locks:
+            # If the thread didn't finish in 3 minutes, something is wrong and the thread is deleted
+            experiment, site = lock.split(":")
+            key = "%s:%s" % (experiment.upper(), site.upper())
+            if key in processes and processes[key]['process'].is_alive():
+                get_log(site, experiment).warn("Terminating process %s %s", site, experiment)
+                processes["%s:%s" % (experiment.upper(), site.upper())]['process'].terminate()
+                locks[lock].release()
+            process = multiprocessing.Process(target=create_client, args=(site, experiment,))
+            process.start()
+            processes["%s:%s" % (experiment, site)] = {'process': process}
+        time.sleep(10*60)
+
+
+def create_client(site, experiment, hostname=None, delete=False, multiple=False):
+    locks["%s:%s" % (experiment.upper(), site.upper())].acquire()
+    get_log().debug("Acquired lock %s:%s", experiment.upper(), site.upper())
+    connector = connectors[configuration_file['vcycle']['experiments'][experiment]['sites'][site]['connector']]
+    cycle = vcycle.Cycle(client=connector,
+                         db=db,
+                         site=site,
+                         experiment=experiment,
+                         params=configuration_file['vcycle']['experiments'][experiment]['sites'][site],
+                         logger=get_log(site, experiment))
+    if delete:
+        cycle.delete(hostname)
+    if multiple:
+        cycle.create()
+    else:
+        cycle.iterate()
+    locks["%s:%s" % (experiment.upper(), site.upper())].release()
+    get_log().debug("Released lock %s:%s", experiment.upper(), site.upper())
+
+
+def get_log(site="server", experiment="server"):
+    from datetime import date
+    try:
+        os.mkdir("/var/log/vcycle/%s/" % experiment)
+    except OSError:
+        print "Error creating log path"
+    logging.basicConfig(level=logging.DEBUG)
+    logger = logging.getLogger(site)
+    if len(logger.handlers) == 0:
+        try:
+            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+            handler = logging.FileHandler("/var/log/vcycle/%s/%s-%s.log" % (experiment, site, date.today().strftime('%d%m%Y')))
+            handler.setLevel(logging.DEBUG)
+            handler.setFormatter(formatter)
+            logger.addHandler(handler)
+        except IOError as e:
+            print str(e)
+    return logger
+
 if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-c", "--conf", nargs='?', default=u"/etc/vcycle/vcycle.conf", help="Path to configuration file")
+
+    args = parser.parse_args()
+
     db = None
-    configuration = None
+    configuration_file = None
     connectors = {}
     queue = multiprocessing.Queue()
     processes = {}
     locks = {}
 
-    start_process()
+    start_process(conf=args.conf)
 

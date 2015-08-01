@@ -29,7 +29,6 @@ def get_cursor(collection, last_id):
 #socket.bind("tcp://*:%s" % port)
 
 def start_listen(collection, queue):
-
     last_id = last_value(collection)
     while True:
         cur = get_cursor(collection, last_id)

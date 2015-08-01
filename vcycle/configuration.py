@@ -1,7 +1,45 @@
-__author__ = 'luis'
+__author__ = 'Luis Villazon Esteban'
 
+import yaml
+import os.path
 import ConfigParser
 
+
+def load(path=u"/etc/vcycle/vcycle.conf", logger=None):
+    if os.path.isfile(path):
+        configuration = yaml.load(open(path))
+    else:
+        configuration = process_legacy_configuration_file('/etc/vcycle.conf')
+
+    for experiment in configuration['vcycle']['experiments']:
+        for site in configuration['vcycle']['experiments'][experiment]['sites']:
+            parse_params(configuration, site, experiment, logger)
+    return configuration
+
+
+def parse_params(configuration, site, experiment, logger=None):
+    for option in configuration['vcycle']['experiments'][experiment]:
+        if option == 'sites':
+            continue
+        if option == 'ganglia':
+            ganglia = configuration['vcycle']['experiments'][experiment]['ganglia']
+            if not isinstance(ganglia, dict):
+                configuration['vcycle']['experiments'][experiment]['ganglia'] = configuration['vcycle']['ganglia'][ganglia]
+        configuration['vcycle']['experiments'][experiment]['sites'][site][option] = configuration['vcycle']['experiments'][experiment][option]
+
+    configuration['vcycle']['experiments'][experiment]['sites'][site]['db'] = configuration['vcycle']['db']['mongo']['url']
+    connector = configuration['vcycle']['experiments'][experiment]['sites'][site]['connector']
+
+    #load files
+    for option in configuration['vcycle']['experiments'][experiment]['sites'][site]:
+        aux = configuration['vcycle']['experiments'][experiment]['sites'][site]
+        if isinstance(aux[option], basestring) and aux[option].startswith('file://'):
+            file = aux[option].replace('file://', '')
+            if os.path.isfile(file):
+                configuration['vcycle']['experiments'][experiment]['sites'][site][option] = open(file).read()
+            else:
+                if logger is not None:
+                    logger.warn("File %s for option %s in %s:%s not exists.", file, option, experiment, site)
 
 
 
@@ -55,6 +93,3 @@ def process_legacy_configuration_file(path):
                         experiments[experiment]['sites'][site][item[0]] = item[1].replace("'", "").replace("\"", "")
 
     return {'vcycle': {'db': mongo, 'connectors': connectors, 'experiments': experiments}}
-
-
-#print process_legacy_configuration_file('../conf/legacy.conf')
