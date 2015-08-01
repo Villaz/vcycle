@@ -79,7 +79,8 @@ setup(
         'jinja2',
         'pyYAML',
         'moment',
-        'python-novaclient'
+        'python-novaclient',
+        'azure'
     ],
 
 
