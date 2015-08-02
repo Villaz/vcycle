@@ -158,7 +158,7 @@ class Delete(unittest.TestCase):
 
         d = deleteClient.Delete(collection=db.test, site='test', experiment='test', client=Foo(), info=info)
         new_servers = d.db_servers_where_provider_has_status_error_stopped(list_servers)
-        print new_servers
+
         self.assertEqual(db.test.find({'state': 'DELETED'}).count(), 3)
         self.assertEqual(db.test.find({'id': 4})[0]['state'], 'BOOTED')
         self.assertEqual(len(new_servers), 1)
@@ -213,7 +213,7 @@ class Delete(unittest.TestCase):
         db.test.insert({'id': 4, 'hostname': 4, 'state': 'BOOTED', 'site': 'test', 'experiment': 'test'})
 
         d = deleteClient.Delete(collection=db.test, site='test', experiment='test', client=Foo(), info=info)
-        new_servers = d.execute(list_servers)
+        new_servers = d.execute_all(list_servers)
         self.assertEqual(len(new_servers), 1)
         self.assertEqual(new_servers[0]['id'], 4)
         self.assertEqual(db.test.find({'state': 'DELETED'}).count(), 3)
@@ -232,7 +232,7 @@ class Delete(unittest.TestCase):
         db.test.insert({'id': 4, 'hostname': 4, 'state': 'BOOTED', 'site': 'test', 'experiment': 'test'})
 
         d = delete.Delete(collection=db.test, site='test', experiment='test', client=Foo(), info=info)
-        new_servers = d.execute(list_servers)
+        new_servers = d.execute_all(list_servers)
         self.assertEqual(new_servers, None)
 
 if __name__ == '__main__':
