@@ -25,7 +25,8 @@ class DeleteBase(object):
 
         for method in dir(self):
             if isinstance(getattr(self, method), types.MethodType) and not method.startswith('__') and method != 'execute_all':
-                print "Executing %s" % method
+                if self.logger is not None:
+                    self.logger.debug("Executing %s" % method)
                 if servers is None:
                     servers = getattr(self, method)(list_servers)
                 else:
@@ -56,7 +57,7 @@ class DeleteBase(object):
             module = __import__("conditions.%s" % cls)
             submodule = getattr(module, cls)
 
-            delete = getattr(submodule,"Delete")
+            delete = getattr(submodule, "Delete")
             obj = delete(collection=collection, site=site, experiment=experiment, client=client, info=info, logger=logger)
             try:
                 if servers is None:
