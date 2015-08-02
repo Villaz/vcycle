@@ -37,11 +37,24 @@ class Azure(CloudConnector):
             raise CloudException(str(ex))
         vms = []
         for result in results:
-            info = sms.get_hosted_service_properties(result.service_name, True)
+            try:
+                info = sms.get_hosted_service_properties(result.service_name, True)
+            except WindowsAzureMissingResourceError as ex:
+                print "% don't have vms? " % result.service_name
+                continue
+
             if len(info.deployments) == 0: continue
             if prefix is not None and not result.service_name.startswith(prefix): continue
 
-            status = info.deployments[0].role_instance_list[0].instance_status
+            try:
+                status = info.deployments[0].role_instance_list[0].instance_status
+            except Exception as ex:
+                import json
+                print json.dumps(info,indent=2)
+                print str(ex)
+                vms.append({'id': result.service_name,'hostname': result.service_name, 'state': 'CREATING'})
+                continue
+
             vm = {'id': result.service_name,'hostname': result.service_name}
             print status
 
@@ -173,6 +186,8 @@ class Azure(CloudConnector):
                                               role_size=flavor,
                                               vm_image_name=image,
                                               provision_guest_agent=True)
+        # The VM is created async, we not wait for confirmation. Assume the VM is created.
+        '''
         try:
             sms.wait_for_operation_status(result.request_id)
         except Exception as ex:
@@ -180,6 +195,7 @@ class Azure(CloudConnector):
                 return
             else:
                 raise CloudException(str(ex))
+        '''
 
 
 def create(**kwargs):

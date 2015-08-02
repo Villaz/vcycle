@@ -52,23 +52,24 @@ def load_connectors():
 
 def process_queue():
 
-    def process():
+    while True:
+        try:
+            message = queue.get()
+            if 'state' in message and message['state'] in ['BOOT', 'END']:
+                get_log('server', 'server').info("Received message %s from %s", message['state'], message['hostname'])
+                process = multiprocessing.Process(target=process_queue_message, args=(message,)).start()
+        except Exception as e:
+            get_log().error(e.message)
+            pass
+
+
+def process_queue_message(message):
         site = message['site']
         experiment = message['experiment']
         if message['state'] == 'END':
             create_client(site, experiment, hostname=message['hostname'], delete=True, multiple=False)
         else:
             create_client(site, experiment, multiple=True)
-
-    while True:
-        try:
-            message = queue.get()
-            if 'state' in message and message['state'] in ['BOOT', 'END']:
-                get_log('server', 'server').info("Received message %s from %s", message['state'], message['hostname'])
-                process = multiprocessing.Process(target=process, args=(message,)).start()
-        except Exception as e:
-            get_log().error(e.message)
-            pass
 
 
 def do_cycle():
@@ -110,15 +111,15 @@ def create_client(site, experiment, hostname=None, delete=False, multiple=False)
 def get_log(site="server", experiment="server"):
     from datetime import date
     try:
-        os.makedirs("/var/log/vcycle/%s/" % experiment)
+        os.makedirs("../logs/vcycle/%s/" % experiment)
     except OSError:
-        print "Error creating log path"
+        pass
     logging.basicConfig(level=logging.DEBUG)
-    logger = logging.getLogger(site)
+    logger = logging.getLogger("%s:%s" %(site,experiment))
     if len(logger.handlers) == 0:
         try:
             formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-            handler = logging.FileHandler("/var/log/vcycle/%s/%s-%s.log" % (experiment, site, date.today().strftime('%d%m%Y')))
+            handler = logging.FileHandler("../logs/vcycle/%s/%s-%s.log" % (experiment, site, date.today().strftime('%d%m%Y')))
             handler.setLevel(logging.DEBUG)
             handler.setFormatter(formatter)
             logger.addHandler(handler)
