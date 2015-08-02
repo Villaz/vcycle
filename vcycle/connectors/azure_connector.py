@@ -2,7 +2,7 @@ __author__ = 'Luis Villazon Esteban'
 
 from azure import *
 from azure.servicemanagement import *
-from connectors import CloudConnector, CloudException
+from vcycle.connectors import CloudConnector, CloudException
 
 
 class Azure(CloudConnector):

@@ -1,7 +1,7 @@
 __author__ = 'luis'
 
-from conditions import delete
-from conditions import deleteClient
+from vcycle.conditions import delete
+from vcycle.conditions import deleteClient
 
 from pymongo import MongoClient
 import unittest
@@ -235,5 +235,8 @@ class Delete(unittest.TestCase):
         new_servers = d.execute_all(list_servers)
         self.assertEqual(new_servers, None)
 
-if __name__ == '__main__':
-    unittest.main()
+
+import sys, os
+sys,path = [os.path.abspath(os.path.dirname(__file__))] + sys.path
+#if __name__ == '__main__':
+#    unittest.main()

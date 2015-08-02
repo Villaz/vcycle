@@ -1,7 +1,7 @@
 __author__ = 'Luis Villazon Esteban'
 
-import connectors
-from conditions import DeleteBase
+from vcycle.connectors import CloudException
+from vcycle.conditions import DeleteBase
 
 
 class Delete(DeleteBase):
@@ -24,7 +24,7 @@ class Delete(DeleteBase):
                 try:
                     self.client.delete(vm['id'])
                     deleted.append(vm)
-                except cloudconnector.CloudException, ex:
+                except CloudException, ex:
                     if self.logger:
                         self.logger.warn("Error deleting vm %s", vm['hostname'])
         return DeleteBase.process_list(list_servers, deleted)
@@ -42,7 +42,7 @@ class Delete(DeleteBase):
                 try:
                     self.client.delete(id)
                     deleted.append({'id': id})
-                except cloudconnector.CloudException as ex:
+                except CloudException as ex:
                     if self.logger is not None:
                         self.logger.warn(str(ex))
         return DeleteBase.process_list(list_servers, deleted)

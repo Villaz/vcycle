@@ -1,6 +1,6 @@
 __author__ = 'luis'
 
-import connectors
+from vcycle.connectors import CloudException
 
 
 class DeleteBase(object):
@@ -63,7 +63,7 @@ class DeleteBase(object):
                     servers = obj.execute_all(list_servers)
                 else:
                     servers = obj.execute_all(servers)
-            except connectors.CloudException as ex:
+            except CloudException as ex:
                 if logger is not None:
                     logger.warn(str(ex))
         return servers

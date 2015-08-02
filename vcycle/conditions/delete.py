@@ -1,7 +1,7 @@
 __author__ = 'luis'
 
 import moment
-from conditions import DeleteBase
+from vcycle.conditions import DeleteBase
 from pymongo import ReturnDocument
 
 
