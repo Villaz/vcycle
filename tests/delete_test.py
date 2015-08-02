@@ -236,7 +236,5 @@ class Delete(unittest.TestCase):
         self.assertEqual(new_servers, None)
 
 
-import sys, os
-sys,path = [os.path.abspath(os.path.dirname(__file__))] + sys.path
 #if __name__ == '__main__':
 #    unittest.main()
