@@ -71,7 +71,7 @@ setup(
 
     scripts=['vcycle.py'],
 
-    packages=['conditions', 'connectors', 'db', 'vcycle', 'config'],
+    packages=['conditions', 'connectors', 'db', 'vcycle'],
 
     install_requires=[
         'requests',
