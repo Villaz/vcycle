@@ -1,8 +1,9 @@
-__author__ = 'luis'
+__author__ = 'Luis Villazon Esteban'
 
 import ssl
 
-ssl._create_default_https_context = ssl._create_unverified_context
+if hasattr(ssl, '_create_unverified_context'):
+    ssl._create_default_https_context = ssl._create_unverified_context
 
 
 class CloudException(Exception):
@@ -37,5 +38,4 @@ class CloudConnector(object):
         :return: VM description
         """
         pass
-
 

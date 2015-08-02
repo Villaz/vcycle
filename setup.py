@@ -18,8 +18,8 @@ install_path = '/etc/vcycle/'
 datafiles = [(path.join(install_path, root), [path.join(root, f) for f in files])
     for root, dirs, files in walk("contextualization")]
 
-if not hasattr(sys, 'version_info') or sys.version_info < (2, 7, 10):
-    raise SystemExit("Vcycle requires Python version 2.7.10 or above.")
+if not hasattr(sys, 'version_info') or sys.version_info < (2, 7):
+    raise SystemExit("Vcycle requires Python version 2.7 or above.")
 
 # Get the long description from the relevant file
 with open(path.join(here, 'DESCRIPTION.rst'), encoding='utf-8') as f:
@@ -63,15 +63,15 @@ setup(
 
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 2, Python 3 or both.
-        'Programming Language :: Python :: 2.7.10',
+        'Programming Language :: Python :: 2.7',
     ],
 
     # What does your project relate to?
     keywords='setuptools development',
 
-    scripts=['vcycle.py'],
+    #scripts=['vcycle.py'],
 
-    packages=['conditions', 'connectors', 'db', 'vcycle', 'config'],
+    packages=['conditions', 'connectors', 'db', 'vcycle'],
 
     install_requires=[
         'requests',
