@@ -1,6 +1,6 @@
 __author__ = 'Luis Villazon Esteban'
 
-from connectors import cloudconnector
+import connectors
 from conditions import DeleteBase
 
 
