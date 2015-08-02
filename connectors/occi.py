@@ -1,6 +1,6 @@
 __author__ = 'Luis Villazon Esteban'
 
-from connectors import CloudConnector , CloudException
+from connectors import CloudConnector, CloudException
 import requests
 import time
 import base64
@@ -15,10 +15,13 @@ class Occi(CloudConnector):
     token = None
     expires = None
     categories = {}
+    session = None
 
     def __init__(self, logger=None, **kwargs):
         CloudConnector.__init__(self)
         self.params = kwargs
+        self.session = requests.Session()
+        self.session.mount(kwargs['endpoint'], requests.adapters.HTTPAdapter(pool_connections=20, max_retries=3))
         self.__auth()
         self._get_definitions()
 
@@ -48,6 +51,8 @@ class Occi(CloudConnector):
             url = url[url.find("=")+2:len(url)-1]
             openstack = OpenstackAuth(endpoint=url, proxy=self.params['proxy'])
             self.token, self.expires = openstack.auth()
+            self.session.headers.clear()
+            self.session.headers.update({"X-Auth-Token": self.token})
 
     def list(self, prefix=None):
         """ Reads information from provider and returns a list of all deployed vms
@@ -57,14 +62,13 @@ class Occi(CloudConnector):
         :return List of VMs
         """
         self.__check_token()
-        headers = {}
-        if self.token is not None:
-            headers["X-Auth-Token"] = self.token
-        response = requests.get(self.params['endpoint']+"/compute/",
-                                cert=self.params['proxy'],
-                                headers=headers,
-                                timeout=60,
-                                verify=False)
+        #headers = {}
+        #if self.token is not None:
+        #    headers["X-Auth-Token"] = self.token
+        response = self.session.get(self.params['endpoint']+"/compute/",
+                                    cert=self.params['proxy'],
+                                    timeout=60,
+                                    verify=False)
         response = response.text
         if response is None:
             return []
@@ -94,13 +98,13 @@ class Occi(CloudConnector):
         headers = {'Accept': 'application/occi+json',
                    'Content-Type': 'application/occi+json'
         }
-        if self.token is not None:
-            headers["X-Auth-Token"] = self.token
-        response = requests.delete("%s/compute/%s" % (self.params['endpoint'], identifier),
-                                cert=self.params['proxy'],
-                                headers=headers,
-                                timeout=60,
-                                verify=False)
+        #if self.token is not None:
+        #    headers["X-Auth-Token"] = self.token
+        response = self.session.delete("%s/compute/%s" % (self.params['endpoint'], identifier),
+                                       cert=self.params['proxy'],
+                                       headers=headers,
+                                       timeout=60,
+                                       verify=False)
         if response.status_code != 200:
             raise CloudException(response.text)
 
@@ -135,15 +139,15 @@ class Occi(CloudConnector):
                    'Connection': 'close'
         }
 
-        if self.token is not None:
-            headers['X-Auth-Token'] = self.token
+        #if self.token is not None:
+        #    headers['X-Auth-Token'] = self.token
 
-        response = requests.post("%s/compute/" % self.params['endpoint'],
-                      data=data,
-                      headers=headers,
-                      cert=self.params['proxy'],
-                      timeout=60,
-                      verify=False)
+        response = self.session.post("%s/compute/" % self.params['endpoint'],
+                                     data=data,
+                                     headers=headers,
+                                     cert=self.params['proxy'],
+                                     timeout=60,
+                                     verify=False)
         if response.status_code not in [200, 201]:
             raise CloudException(response.text)
         else:
@@ -168,16 +172,15 @@ class Occi(CloudConnector):
         """
         headers = {'Accept': 'application/occi+json',
                    'Content-Type': 'application/occi+json'}
-        if token is not None:
-            headers['X-Auth-Token'] = token
+        #if token is not None:
+        #    headers['X-Auth-Token'] = token
 
         try:
-            print uri
-            response = requests.get(uri,
-                                    cert=self.params['proxy'],
-                                    headers=headers,
-                                    timeout=60,
-                                    verify=False)
+            response = self.session.get(uri,
+                                        cert=self.params['proxy'],
+                                        headers=headers,
+                                        timeout=60,
+                                        verify=False)
         except requests.Timeout as timeout:
             id = uri[uri.rfind('/')+1:]
             if id.startswith('http'):
@@ -215,12 +218,12 @@ class Occi(CloudConnector):
         """
         self.__check_token()
         headers = {'Accept': 'text/plain,text/occi'}
-        if self.token is not None:
-            headers["X-Auth-Token"] = self.token
-        response = requests.get("%s/-/" % self.params['endpoint'],
-                                headers=headers,
-                                cert=self.params['proxy'],
-                                verify=False)
+        #if self.token is not None:
+        #    headers["X-Auth-Token"] = self.token
+        response = self.session.get("%s/-/" % self.params['endpoint'],
+                                    headers=headers,
+                                    cert=self.params['proxy'],
+                                    verify=False)
         categories = response.text.split("\n")[1:]
         for category in categories:
             values = category.split(";")
