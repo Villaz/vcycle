@@ -28,8 +28,9 @@ class Delete(DeleteBase):
                                                 {'$set': {'state': 'DELETED'}},
                                                 return_document=ReturnDocument.AFTER)
 
-
     def delete_computers_lost_heartbeat(self, list_servers=[]):
+        if 'heartbeat' not in self.info:
+            return
         now = int(moment.now().subtract('seconds', self.info['heartbeat']).epoch(rounding=True))
         cursor = self.collection.find({'site': self.site,
                                        'experiment': self.experiment,
@@ -44,6 +45,8 @@ class Delete(DeleteBase):
                                                 return_document=ReturnDocument.AFTER)
 
     def delete_computers_not_started(self, list_servers=[]):
+        if 'boot_time' not in self.info:
+            return
         now = int(moment.now().subtract('seconds', self.info['boot_time']).epoch(rounding=True))
         cursor = self.collection.find({'site': self.site,
                                        'experiment': self.experiment,
@@ -57,7 +60,9 @@ class Delete(DeleteBase):
                                                 {'$set': {'state': 'DELETED'}})
 
     def delete_computers_booted_and_not_started(self, list_servers=[]):
-        now = int(moment.now().subtract('seconds', (self.info['boot_time'] + self.info['boot_time'])).epoch(rounding=True))
+        if 'start_time' not in self.info or 'boot_time' not in self.info:
+            return
+        now = int(moment.now().subtract('seconds', (self.info['boot_time'] + self.info['start_time'])).epoch(rounding=True))
         cursor = self.collection.find({'site': self.site,
                                        'experiment': self.experiment,
                                        'state': 'BOOTED',
