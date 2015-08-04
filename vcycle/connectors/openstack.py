@@ -1,6 +1,9 @@
 __author__ = 'Luis Villazon Esteban'
 
-from vcycle.connectors import CloudConnector, CloudException
+try:
+    from connectors import CloudConnector, CloudException
+except:
+    from vcycle.connectors import CloudConnector, CloudException
 from novaclient.client import Client
 import os
 import uuid

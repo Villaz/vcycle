@@ -1,6 +1,10 @@
 __author__ = 'Luis Villazon Esteban'
 
-from vcycle.connectors import CloudConnector, CloudException
+try:
+    from connectors import CloudConnector, CloudException
+except:
+    from vcycle.connectors import CloudConnector, CloudException
+
 import requests
 import time
 import base64
