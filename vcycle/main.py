@@ -13,7 +13,7 @@ import vcycle
 from db import capped
 
 
-def start_process(conf=u'/etc/vcycle/conf'):
+def start_process(conf=u'/etc/vcycle/vcycle.conf'):
     global db, configuration_file, connectors, queue, processes, locks
 
     configuration_file = configuration.load(path=conf,logger=get_log())
@@ -111,7 +111,7 @@ def create_client(site, experiment, hostname=None, delete=False, multiple=False)
 def get_log(site="server", experiment="server"):
     from datetime import date
     try:
-        os.makedirs("../logs/vcycle/%s/" % experiment)
+        os.makedirs("/var/log/vcycle/%s/" % experiment)
     except OSError:
         pass
     logging.basicConfig(level=logging.DEBUG)
@@ -119,7 +119,7 @@ def get_log(site="server", experiment="server"):
     if len(logger.handlers) == 0:
         try:
             formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-            handler = logging.FileHandler("../logs/vcycle/%s/%s-%s.log" % (experiment, site, date.today().strftime('%d%m%Y')))
+            handler = logging.FileHandler("/var/log/vcycle/%s/%s-%s.log" % (experiment, site, date.today().strftime('%d%m%Y')))
             handler.setLevel(logging.DEBUG)
             handler.setFormatter(formatter)
             logger.addHandler(handler)
