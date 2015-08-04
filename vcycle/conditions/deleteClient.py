@@ -1,7 +1,11 @@
 __author__ = 'Luis Villazon Esteban'
 
-from vcycle.connectors import CloudException
-from vcycle.conditions import DeleteBase
+try:
+    from conditions import DeleteBase
+    from connectors import CloudException
+except:
+    from vcycle.conditions import DeleteBase
+    from vcycle.connectors import CloudException
 
 
 class Delete(DeleteBase):

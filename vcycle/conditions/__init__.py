@@ -1,7 +1,9 @@
 __author__ = 'luis'
 
-from vcycle.connectors import CloudException
-
+try:
+    from connectors import CloudException
+except:
+    from vcycle.connectors import CloudException
 
 class DeleteBase(object):
 

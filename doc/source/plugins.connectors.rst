@@ -4,7 +4,7 @@ Connectors
 Azure
 -------------------------------
 
-.. automodule:: vcycle.connectors.azure
+.. automodule:: vcycle.connectors.azure_connector
     :members:
     :undoc-members:
     :show-inheritance:
@@ -12,7 +12,7 @@ Azure
 Cloudconnector
 ----------------------------------------
 
-.. automodule:: vcycle.connectors.cloudconnector
+.. automodule:: vcycle.connectors.__init__
     :members:
     :undoc-members:
     :show-inheritance:
