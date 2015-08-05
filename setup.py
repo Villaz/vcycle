@@ -69,7 +69,7 @@ setup(
     # What does your project relate to?
     keywords='development',
 
-    #scripts=['vcycle.py'],
+    scripts=['vcycle/main.py'],
 
     packages=['vcycle'],
 
