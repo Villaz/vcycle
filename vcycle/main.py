@@ -18,6 +18,13 @@ except Exception:
 from pymongo import MongoClient
 
 
+db = None
+configuration_file = None
+connectors = {}
+queue = multiprocessing.Queue()
+processes = {}
+locks = {}
+
 def start_process(conf=u'/etc/vcycle/vcycle.conf'):
     global db, configuration_file, connectors, queue, processes, locks
 
@@ -149,13 +156,6 @@ if __name__ == "__main__":
     parser.add_argument("-c", "--conf", nargs='?', default=u"/etc/vcycle/vcycle.conf", help="Path to configuration file")
 
     args = parser.parse_args()
-
-    db = None
-    configuration_file = None
-    connectors = {}
-    queue = multiprocessing.Queue()
-    processes = {}
-    locks = {}
 
     start_process(conf='../conf/infinity.conf')
 

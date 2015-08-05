@@ -75,7 +75,7 @@ class Cycle:
         if not self.__machines_executing_or_only_one_machine_not_started() and \
                self.__deployed_machines_less_than_maximum():
             self.__create_vm()
-            
+
     def create(self, created=0):
         """Creates a new or group of new VMs
 
