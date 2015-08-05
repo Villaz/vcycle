@@ -5,7 +5,7 @@ try:
         from vcycle import main
 except ImportError:
         from vcycle.vcycle import main
-        
+
 import sys, os, time, atexit
 from signal import SIGTERM
 
@@ -136,13 +136,12 @@ class Daemon:
                 """
 
 
-
 class Vcycle(Daemon):
         def run(self):
-            try:
-                main.start_process()
-            except Exception as e:
-                print "Nooo"
+            import time
+            main.start_process()
+            while True:
+                    time.sleep(600)
 
 if __name__ == "__main__":
         vcycle = Vcycle('/tmp/vcycle.pid',stdout='/tmp/vcycle.out', stderr='/tmp/vcycle.err')
