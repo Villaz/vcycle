@@ -18,14 +18,10 @@ except Exception:
 from pymongo import MongoClient
 
 
-
-
-
-
 def start_process(conf=u'/etc/vcycle/vcycle.conf'):
     global db, configuration_file, connectors, queue, processes, locks
 
-    configuration_file = configuration.load(path=conf,logger=get_log())
+    configuration_file = configuration.load(path=conf, logger=get_log())
     client = MongoClient(configuration_file['vcycle']['db']['mongo']['url'])
     db = client.infinity.computer_test
 
@@ -58,8 +54,12 @@ def load_connectors():
                 module = __import__("connectors.%s_connector" % type)
                 class_ = getattr(module, "%s_connector" % type)
             except ImportError:
-                module = __import__("vcycle.connectors.%s_connector" % type)
-                class_ = getattr(module, "%s_connector" % type)
+                try:
+                    module = __import__("vcycle.connectors.%s" % type)
+                    class_ = getattr(module, "%s_connector" % type)
+                except ImportError:
+                    module = __import__("vcycle.connectors.%s_connector" % type)
+                    class_ = getattr(module, "%s_connector" % type)
 
         connectors[connector] = class_.create(**configuration_file['vcycle']['connectors'][connector])
 
@@ -155,5 +155,5 @@ if __name__ == "__main__":
     processes = {}
     locks = {}
 
-    start_process(conf='../conf/infinity.conf')
+    start_process()
 
