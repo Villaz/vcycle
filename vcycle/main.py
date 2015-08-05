@@ -150,5 +150,5 @@ if __name__ == "__main__":
     processes = {}
     locks = {}
 
-    start_process(conf='../conf/infinity.conf')
+    start_process()
 
