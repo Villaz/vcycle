@@ -55,9 +55,13 @@ class DeleteBase(object):
         servers = None
         modules = glob.glob(os.path.dirname(__file__)+"/*.py")
         for cls in [os.path.basename(f)[:-3] for f in modules if f.find("__") < 0 and f.find('test') < 0]:
-            print cls
-            module = __import__("conditions.%s" % cls)
-            submodule = getattr(module, cls)
+            try:
+                module = __import__("conditions.%s" % cls)
+                submodule = getattr(module, cls)
+            except ImportError:
+                module = __import__("vcycle.conditions.%s" % cls)
+                mod = getattr(module, 'conditions')
+                submodule = getattr(mod, cls)
 
             delete = getattr(submodule, "Delete")
             obj = delete(collection=collection, site=site, experiment=experiment, client=client, info=info, logger=logger)
