@@ -56,7 +56,7 @@ def load_connectors():
             except ImportError:
                 try:
                     module = __import__("vcycle.connectors.%s" % type)
-                    class_ = getattr(module, "%s_connector" % type)
+                    class_ = getattr(module, type)
                 except ImportError:
                     module = __import__("vcycle.connectors.%s_connector" % type)
                     class_ = getattr(module, "%s_connector" % type)
