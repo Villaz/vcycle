@@ -1,7 +1,7 @@
 Create your Contextualization script
 =====================================
 
-Vcycle uses jinja2 to create the contextualization files. ¿What does mean?, The contextualization files are templates!
+Vcycle uses **jinja2** to create the contextualization files. ¿What does mean?, The contextualization files are templates!
 
 The contextualization file in vcycle has three different parts:
 
@@ -39,8 +39,8 @@ Base template
 Base template is the basic template to contextualize a VM. It has the code that allows the VM to comunicate with
 vcycle, so you don't need to worry about this, you only need to worry about write your job code :-).
 
-If you want to create a new base template, to support other Operating systems, you need to copy the base_centos template
-and modify it and adapt to the new scenario.
+If you want to create a new base template, for example to support other OS, you need to copy the base_centos template
+and adapt it to the new scenario.
 
 .. code-block:: bash
 

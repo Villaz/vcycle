@@ -1,10 +1,8 @@
 Configure Vcycle
 ===============================
 
-Vcycle uses a YAML file format to configure it behaviour, and all the functionality needed to create and manage
-VMs on multiple providers.
+Vcycle uses a YAML file format to define its settings.
 
-Don't worry , it's too easy!
 
 How looks like?
 -----------------------------
@@ -53,11 +51,9 @@ How looks like?
 
 Database
 ---------
-At the moment Vcycle only works with MongoDB, but who knows, maybe in the future we'll add support to one One!.
-The DB is used by vcycle server to retrieve information about the state of the deployed VMs, and also is used by the
-VMs to update their own information. So... this is important.. the DB port must be open to internet!.
-
-The Db field is mandatory and there you need to put the url where your MongoDB is allocated.
+At the moment Vcycle only works with MongoDB, but who knows, maybe in the future we'll add support to new one!.
+The DB is used by vcycle to retrieve information about the state of the deployed VMs, and also is used by the
+VMs to update their own information. **IMPORTANT** the DB port must be open to internet!.
 
 .. code-block:: yaml
 
@@ -70,8 +66,8 @@ The Db field is mandatory and there you need to put the url where your MongoDB i
 Ganglia
 ---------
 
-This key is only used if you want monitor your vms, and to monitor you are using ganglia.
-You can define how many ganglia servers you want , and attach then to the different experiments.
+This key is only used if you want monitor your VMs.
+You can define as many ganglia servers you want, and attach then to the different experiments.
 
 For each ganglia server you need to specify:
 
@@ -91,9 +87,9 @@ For each ganglia server you need to specify:
 Connectors
 -----------
 
-At the moment Vcycle supports: Azure, Openstack, Occi, DBCE.
+Vcycle supports: Azure, Openstack, Occi, DBCE.
 
-In connectors, you have to define all the connectors that you will use with your experiments.
+In connectors, you have to define all the connectors that you are going to use in your experiments.
 Each connector has it owns parameters, so let go:
 
 Azure
@@ -112,9 +108,9 @@ DBCE
 
   dbce:
     type: "dbce"
-    endpoint: "https://api.cloud.exchange" #Right now it the only endpoint
+    endpoint: "https://api.cloud.exchange" #Right now it is the only endpoint
     key: "<your_api_key>"
-    version: "v0" #Right now is always v0
+    version: "v0" #Always v0
 
 Openstack
 ```````````
@@ -144,28 +140,28 @@ Experiments
 -----------
 
 In this space you will define all the experiments that you will run, and also all the sites inside the experiment.
-In the experiment you need to define the contextualization script. that you want to use to contextualize your VMs. Also
-you can define your own parameters to use in the contextualization script.
+In the experiment you need to define the contextualization script that you want to use to contextualize your VMs. Also
+you can define your own parameters to use in the contextualization.
 
 .. code-block:: yaml
 
   experiments:
     HALF-LIFE-3:
         user_data: "file://<path>"
-        ganglia: "ganglia-dbce" #If you use ganglia, you can put here the identifier
+        ganglia: "ganglia-dbce" #If you use ganglia, you need to put here the identifier
         custom-param: "Gordooon!"
 
-        sites: #Here you will put your providers
+        sites: #Your providers
 
-**Notice that the site name must be in CAPITAL LETTERS!**
+**Notice that the experiment name must be in CAPITAL LETTERS!**
 
 Sites
 -----------
 
 Sites are the providers that you will use to create VMs and execute your jobs.
-In this part you need to define all the needded parameters to create the VMs.
-The mandatory parameters are: connector, prefix, image, flavor, max_machines, boot_time, start_time, wall_time.
-Like in the experiment part, you are free to add new parameters.
+In this part you need to define all the needed parameters to create the VMs.
+The mandatory parameters are: connector, prefix, image, flavor, max_machines.
+Like in experiment section, you are free to add new parameters.
 
 **Notice that the site name must be in CAPITAL LETTERS!**
 
@@ -175,7 +171,7 @@ Like in the experiment part, you are free to add new parameters.
     ONE:
       connector: "dbce" # You need to introduce the connector name
       prefix: "vcycle-xyz" #The prefix to use to monitor the machines, all machines will be created with the prefix and the creation timestamp
-      max_machines: "1" #The maximum VM that will be created in the site
+      max_machines: "1" #The maximum VMs to create in the site
       flavor: "<flavor_vm>"
       image: "<image_vm>"
       boot_time: 800 # Time in seconds between the machine is created and It starts
@@ -187,7 +183,7 @@ Like in the experiment part, you are free to add new parameters.
 Legacy Configuration
 ======================
 
-Vcycle also supports the old configuration file.
+Vcycle also supports the old vcycle configuration file.
 
 The file looks like:
 
@@ -218,7 +214,7 @@ The file looks like:
 
 
 
-In this configuration file, you need to see a couple of things:
+In this configuration file you need to see a couple of things:
 
 - The file must be in /etc/vcycle.conf
 - The user_data files are stored in /var/lib/vcycle/user_data/ with name TENANT:EXPERIMENT:QUEUE.
@@ -227,6 +223,6 @@ In this configuration file, you need to see a couple of things:
 - The vmtype section indicates the name of the tenant, the name of the experiment and the QUEUE to use in the experiment
 
 In this case, for example, we are telling to vcycle that the vmtype with the tenancy dbce and  with experiment dbceExperiment
-will execute a job in DBCE queue with the given parameters.
+will execute a job in DBCE queue.
 
 **IMPORTANT: user_data is a text file, the template user_data is not supported in legacy mode.**
