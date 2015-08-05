@@ -10,8 +10,11 @@ from setuptools import setup, find_packages
 from codecs import open
 from os import path, walk
 import sys
+import shutil
 
 here = path.abspath(path.dirname(__file__))
+
+shutil.move("%s/bin/vcycle" % here, "/etc/init.d/vcycle")
 
 # Add contextualization dir files
 install_path = '/etc/vcycle/'
