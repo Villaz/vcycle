@@ -6,11 +6,20 @@ import os
 import time
 import threading
 import argparse
-import configuration
+try:
+    import configuration
+    import vcycle
+    from db import capped
+except Exception:
+    import vcycle.configuration
+    import vcycle.vcycle
+    from vcycle.db import capped
+
 from pymongo import MongoClient
 
-import vcycle
-from db import capped
+
+
+
 
 
 def start_process(conf=u'/etc/vcycle/vcycle.conf'):
