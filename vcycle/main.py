@@ -11,9 +11,9 @@ try:
     import vcycle
     from db import capped
 except Exception:
-    import vcycle.configuration
-    import vcycle.vcycle
-    from vcycle.db import capped
+    import vcycle.configuration as configuration
+    import vcycle.vcycle as vcycle
+    from vcycle.db import capped as capped
 
 from pymongo import MongoClient
 
