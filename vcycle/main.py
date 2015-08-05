@@ -56,10 +56,12 @@ def load_connectors():
             except ImportError:
                 try:
                     module = __import__("vcycle.connectors.%s" % type)
-                    class_ = getattr(module, type)
+                    mod = getattr(module, 'connectors')
+                    class_ = getattr(mod, type)
                 except ImportError:
                     module = __import__("vcycle.connectors.%s_connector" % type)
-                    class_ = getattr(module, "%s_connector" % type)
+                    mod = getattr(module, 'connectors')
+                    class_ = getattr(mod, "%s_connector" % type)
 
         connectors[connector] = class_.create(**configuration_file['vcycle']['connectors'][connector])
 
@@ -155,5 +157,5 @@ if __name__ == "__main__":
     processes = {}
     locks = {}
 
-    start_process()
+    start_process(conf='../conf/infinity.conf')
 
