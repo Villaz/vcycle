@@ -8,7 +8,7 @@ import moment
 import copy
 from conditions import DeleteBase
 from connectors import CloudException
-from jinja2 import Environment, PackageLoader
+from jinja2 import Environment, PackageLoader , FileSystemLoader
 
 
 class Cycle:
@@ -75,7 +75,7 @@ class Cycle:
         if not self.__machines_executing_or_only_one_machine_not_started() and \
                self.__deployed_machines_less_than_maximum():
             self.__create_vm()
-
+            
     def create(self, created=0):
         """Creates a new or group of new VMs
 
@@ -116,10 +116,15 @@ class Cycle:
 
         # If user_data starts with #! is a script not name template
         if '#!' not in params_to_create['user_data']:
-            env = Environment(loader=PackageLoader('contextualization', ''))
+            try:
+                env = Environment(loader=FileSystemLoader('/etc/vcycle/contextualization'))
+            except Exception as e:
+                self.logger.error(str(e))
+                return
+            #env = Environment(loader=PackageLoader('contextualization', ''))
             template = env.get_template(params_to_create['user_data'])
             params_to_create['user_data'] = template.render(params_to_create)
-            open("../tmp/%s" % str(uuid.uuid4()), 'w').write(params_to_create['user_data'])
+            #open("../tmp/%s" % str(uuid.uuid4()), 'w').write(params_to_create['user_data'])
 
         params_to_create['logger'] = self.logger if self.logger is not None else False
 
