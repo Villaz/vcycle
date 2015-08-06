@@ -84,7 +84,7 @@ class Cycle:
             If there are more VMs , a new VM always will be create unless there is only one VM and this VM is not
             executing a job yet, or the number of VMs is equal to the maximum allowed.
 
-        :param created: Number of vms created by the iterator. On each iteration a maximum of 5 vms are created.
+        :param created: Number of vms created by the iterator. On each iteration a maximum of 2 vms are created.
 
         """
         if not self.__conditions_to_create(created):
@@ -116,12 +116,12 @@ class Cycle:
 
         # If user_data starts with #! is a script not name template
         if '#!' not in params_to_create['user_data']:
-            try:
-                env = Environment(loader=FileSystemLoader('/etc/vcycle/contextualization'))
-            except Exception as e:
-                self.logger.error(str(e))
-                return
-            #env = Environment(loader=PackageLoader('contextualization', ''))
+            #try:
+            #    env = Environment(loader=FileSystemLoader('/etc/vcycle/contextualization'))
+            #except Exception as e:
+            #    self.logger.error(str(e))
+            #    return
+            env = Environment(loader=PackageLoader('contextualization', ''))
             template = env.get_template(params_to_create['user_data'])
             params_to_create['user_data'] = template.render(params_to_create)
             #open("../tmp/%s" % str(uuid.uuid4()), 'w').write(params_to_create['user_data'])
@@ -174,14 +174,14 @@ class Cycle:
     def __conditions_to_create(self, created=0):
         """Check the conditions to create a new VM
 
-        A new vm will be created if the number of VMs created in the cycle are less than 5 or the number of VMs is
+        A new vm will be created if the number of VMs created in the cycle are less than 2 or the number of VMs is
         more than one, or is one and this one is executing a job.
 
         :param created: Number of vms created in the cycle
         :return: True if a VM can be created. False if not
         """
-        if created >= 5:
-            self.logger.info("Thread has created 5 machines, The thread will end") if self.logger is not None else False
+        if created >= 2:
+            self.logger.info("Thread has created 2 machines, The thread will end") if self.logger is not None else False
             return False
 
         if self.__machines_executing_or_only_one_machine_not_started():
