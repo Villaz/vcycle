@@ -1,5 +1,19 @@
+.. raw:: html
+
+   <div>
+   <div style="float:left">
+   <a href="https://travis-ci.org/Villaz/vcycle"><img src="https://travis-ci.org/Villaz/vcycle.svg?branch=new"/></a>
+   </div>
+   <div style="float:right; margin-right:10px">
+   <a aria-label="Star Villaz/vcycle on GitHub" data-count-aria-label="# stargazers on GitHub" data-count-api="/repos/Villaz/vcycle#stargazers_count" data-count-href="/Villaz/vcycle/stargazers" data-style="mega" data-icon="octicon-star" href="https://github.com/Villaz/vcycle" class="github-button">Star</a>
+   </div>
+   </div>
+   <div style="clear:both"></div>
+
+
 Welcome to Vcycle's documentation!
 ===================================
+
 
 Few words: Vcycle is a VM lifecycle manager.
 
@@ -75,9 +89,13 @@ Contents:
    api
 
 
-
 Indices and tables
 ==================
 
 * :ref:`genindex`
 * :ref:`search`
+
+.. raw:: html
+
+   <!-- Place this tag right after the last button or just before your close body tag. -->
+   <script async defer id="github-bjs" src="https://buttons.github.io/buttons.js"></script>

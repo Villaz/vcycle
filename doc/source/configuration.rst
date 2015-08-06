@@ -12,6 +12,9 @@ How looks like?
       db:
         mongo:
           url: ""
+          database: ""
+          collection: ""
+          capped_collection: ""
 
       ganglia:
         ganglia-xxx:
@@ -59,7 +62,10 @@ VMs to update their own information. **IMPORTANT** the DB port must be open to i
 
     db:
       mongo:
-        url: "mongodb://<user>:<password>@<host>/<db>"
+        url: "mongodb://<user>:<password>@<host>"
+        database: "database_name"
+        collection: "collection_to_store_vm_information"
+        capped_collection: "collection_to_store_the_messages_send_by_vms"
 
 
 
