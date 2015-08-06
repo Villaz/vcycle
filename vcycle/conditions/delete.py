@@ -121,16 +121,16 @@ class Delete(DeleteBase):
 
         for value in cursor:
             if 'DELETED' in value['states']:
-                self.collection.delete_many({'id': value['_id'], 'state': {'$nin': ['DELETED']}})
+                self.collection.delete_many({'hostname': value['_id'], 'state': {'$nin': ['DELETED']}})
                 for id in value['ids']:
                     self.client.delete(id)
             elif 'ENDED' in value['states']:
-                self.collection.delete_many({'id': value['_id'], 'state': {'$nin': ['ENDED']}})
+                self.collection.delete_many({'hostname': value['_id'], 'state': {'$nin': ['ENDED']}})
             elif 'ERROR' in value['states']:
-                self.collection.delete_many({'id': value['_id'], 'state': {'$nin': ['ERROR']}})
+                self.collection.delete_many({'hostname': value['_id'], 'state': {'$nin': ['ERROR']}})
             elif 'STARTED' in value['states']:
-                self.collection.delete_many({'id': value['_id'], 'state': {'$nin': ['STARTED']}})
+                self.collection.delete_many({'hostname': value['_id'], 'state': {'$nin': ['STARTED']}})
             elif 'BOOTED' in value['states']:
-                self.collection.delete_many({'id': value['_id'], 'state': {'$nin': ['BOOTED']}})
+                self.collection.delete_many({'hostname': value['_id'], 'state': {'$nin': ['BOOTED']}})
 
 
