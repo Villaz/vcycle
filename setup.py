@@ -14,7 +14,10 @@ import shutil
 
 here = path.abspath(path.dirname(__file__))
 
-shutil.move("%s/bin/vcycle" % here, "/etc/init.d/vcycle")
+try:
+    shutil.move("%s/bin/vcycle" % here, "/etc/init.d/vcycle")
+except IOError as ex:
+    print str(ex)
 
 # Add contextualization dir files
 install_path = '/etc/vcycle/'
