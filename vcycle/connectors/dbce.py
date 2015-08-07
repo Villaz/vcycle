@@ -26,7 +26,7 @@ class Dbce(CloudConnector):
         if 'logger' in kwargs:
             self.logger = kwargs['logger']
 
-    def list(self, prefix):
+    def list(self, prefix=None):
         """ Reads information from provider and returns a list of all deployed vms
 
         :param prefix: Only returns vms with the prefix in their hostname
@@ -45,7 +45,7 @@ class Dbce(CloudConnector):
                 return vm
 
             content = response.json()
-            return [process_vm(value) for value in response.json()['data'] if prefix in value['name']]
+            return [process_vm(value) for value in response.json()['data'] if prefix is None or prefix in value['name']]
         else:
             raise CloudException(response.json)
 
