@@ -75,7 +75,7 @@ setup(
     # What does your project relate to?
     keywords='development',
 
-    scripts=['vcycle/main.py','bin/vcycle_delete','bin/vcycle_list.py', 'bin/vcycle_delete.py', 'bin/vcycle_public_ip.py'],
+    scripts=['vcycle/main.py','bin/vcycle_list.py', 'bin/vcycle_delete.py', 'bin/vcycle_public_ip.py'],
 
     packages=['vcycle', 'vcycle.conditions', 'vcycle.connectors', 'vcycle.db'],
 
