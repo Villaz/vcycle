@@ -86,7 +86,8 @@ setup(
         'pyYAML',
         'moment',
         'python-novaclient',
-        'azure'
+        'azure',
+        'urllib3'
     ],
 
 

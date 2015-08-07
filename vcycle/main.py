@@ -162,5 +162,5 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    start_process(conf='../conf/infinity.conf')
+    start_process()
 
