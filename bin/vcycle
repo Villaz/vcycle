@@ -112,11 +112,11 @@ class Daemon:
                 # Try killing the daemon process
                 try:
                         p = psutil.Process(pid)
+                        child_pid = p.get_children(recursive=True)
+                        for pid in child_pid:
+                                os.kill(pid.pid, SIGTERM)
                         while 1:
                                 os.kill(pid, SIGTERM)
-                                child_pid = p.get_children(recursive=True)
-                                for pid in child_pid:
-                                        os.kill(pid.pid, SIGTERM)
                                 time.sleep(0.1)
                 except OSError, err:
                         err = str(err)
