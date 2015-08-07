@@ -103,25 +103,21 @@ class Cycle:
 
         """
         params_to_create = copy.deepcopy(self.params)
-
         params_to_create['hostname'] = params_to_create['id'] = "%s-%s" % (self.params['prefix'], str(int(moment.now().epoch())))
-        try:
-            params_to_create['host'], params_to_create['ganglia_port'] = self.__ganglia_port()
-        except:
-            pass
         params_to_create['site'] = self.site
+
         if 'experiment' in params_to_create:
             params_to_create[params_to_create['experiment']] = True
         params_to_create['experiment'] = self.experiment
 
         # If user_data starts with #! is a script not name template
         if '#!' not in params_to_create['user_data']:
-            #try:
-            #    env = Environment(loader=FileSystemLoader('/etc/vcycle/contextualization'))
-            #except Exception as e:
-            #    self.logger.error(str(e))
-            #    return
-            env = Environment(loader=PackageLoader('contextualization', ''))
+            try:
+                env = Environment(loader=FileSystemLoader('/etc/vcycle/contextualization'))
+            except Exception as e:
+                self.logger.error(str(e))
+                return
+            #env = Environment(loader=PackageLoader('contextualization', ''))
             template = env.get_template(params_to_create['user_data'])
             params_to_create['user_data'] = template.render(params_to_create)
             #open("../tmp/%s" % str(uuid.uuid4()), 'w').write(params_to_create['user_data'])
@@ -139,6 +135,7 @@ class Cycle:
             self.logger.info(" VM %s has been created", server['hostname']) if self.logger is not None else False
         except CloudException as ex:
             self.logger.error(str(ex))
+
 
     def list(self):
         """ List all VMs deployed in the provider
@@ -228,21 +225,6 @@ class Cycle:
             self.logger.info("Number of VM %s is equal or higher than %s ; no create more VMs" % (val, self.params['max_machines']))
         return False
 
-    def __ganglia_port(self):
-        """ Returns the ganglia port used to monitorize the VM
-
-        This method is only uses if ganglia is used to monitorize the behaviour of the VMs.
-        In case the user use ganglia, this function makes a petition to ganglia server to retrieve the port where
-        the VM will send the information
-
-        :return: A list with the host and port to connect
-        """
-        ganglia_conf = self.params['ganglia']['conf']
-        response = requests.get(ganglia_conf)
-        text = response.text.replace(u"\xe2", "\"").replace(u'\xc3', '').upper()
-        ganglia = json.loads(text)
-        if self.site.upper() in ganglia:
-            return self.params['ganglia']['host'], ganglia[self.site.upper()]['PORT']
 
 
 
