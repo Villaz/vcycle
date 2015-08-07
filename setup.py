@@ -87,7 +87,8 @@ setup(
         'moment',
         'python-novaclient',
         'azure',
-        'urllib3'
+        'urllib3',
+        'psutil'
     ],
 
 

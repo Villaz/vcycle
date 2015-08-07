@@ -8,6 +8,7 @@ except ImportError:
 
 import sys, os, time, atexit
 from signal import SIGTERM
+import psutil
 
 
 class Daemon:
@@ -110,8 +111,12 @@ class Daemon:
 
                 # Try killing the daemon process
                 try:
+                        p = psutil.Process(pid)
                         while 1:
                                 os.kill(pid, SIGTERM)
+                                child_pid = p.get_children(recursive=True)
+                                for pid in child_pid:
+                                        os.kill(pid.pid, SIGTERM)
                                 time.sleep(0.1)
                 except OSError, err:
                         err = str(err)
