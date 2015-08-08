@@ -113,8 +113,8 @@ class Daemon:
                 try:
                         p = psutil.Process(pid)
                         child_pid = p.get_children(recursive=True)
-                        for pid in child_pid:
-                                os.kill(pid.pid, SIGTERM)
+                        for chipid in child_pid:
+                                os.kill(chipid.pid, SIGTERM)
                         while 1:
                                 os.kill(pid, SIGTERM)
                                 time.sleep(0.1)
