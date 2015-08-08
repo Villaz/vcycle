@@ -116,7 +116,7 @@ class Daemon:
                         for chipid in child_pid:
                                 os.kill(chipid.pid, SIGTERM)
                         while 1:
-                                os.kill(pid, SIGTERM)
+                                os.kill(int(pid), SIGTERM)
                                 time.sleep(0.1)
                 except OSError, err:
                         err = str(err)
