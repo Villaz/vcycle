@@ -88,8 +88,8 @@ def process_queue():
     while True:
         try:
             message = queue.get()
+            get_log('server', 'server').info("Received message %s from %s", message['state'], message['hostname'])
             if 'state' in message and message['state'] in ['BOOT', 'END']:
-                get_log('server', 'server').info("Received message %s from %s", message['state'], message['hostname'])
                 process_queue_message(message)
         except Exception as e:
             get_log().error(e.message)
