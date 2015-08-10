@@ -43,6 +43,11 @@ def start_process(conf=u'/etc/vcycle/vcycle.conf'):
 
     if capped_name not in client[database_name].collection_names():
         client[database_name].create_collection(capped_name, capped=True, size=2**20, autoIndexId=False)
+        client[database_name][capped_name].insert_one({'site': '',
+                                                       'experiment': '',
+                                                       'hostname': '',
+                                                       'state': '',
+                                                       'time': -1})
     capped_collection = client[database_name][capped_name]
 
     multiprocessing.Process(target=capped.start_listen, args=(capped_collection, queue, get_log("db","db"))).start()

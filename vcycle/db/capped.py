@@ -13,14 +13,14 @@ def last_value(collection):
     global last_id
     try:
         cur = collection.find({}).sort('$natural',-1).limit(1)[0]
-        return cur['_id']
+        return cur['time']
     except IndexError,e:
         print e
         return  -1
 
 
 def get_cursor(collection, last_id):
-    return collection.find({'_id': {'$gt': last_id}}, cursor_type=CursorType.EXHAUST).sort('$natural', -1)
+    return collection.find({'time': {'$gt': last_id}}, cursor_type=CursorType.EXHAUST).sort('$natural', -1)
 
 
 #port = "5556"
