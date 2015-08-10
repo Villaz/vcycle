@@ -50,7 +50,7 @@ class Cycle:
         of new VMs
 
          """
-        self.list()
+        states = self.list()
 
         try:
             self.logger.debug("Listing VMs from provider")
@@ -69,11 +69,17 @@ class Cycle:
                            info=self.params,
                            logger=self.logger)
 
-        if not self.__machines_executing_or_only_one_machine_not_started() and \
-               self.__deployed_machines_less_than_maximum():
+        if states['TOTAL'] == 0:
             self.__create_vm()
-        elif self.__no_machines_creating() and self.__deployed_machines_less_than_maximum():
+        elif states['TOTAL'] > 0 and states['CREATING'] == 0 and self.__deployed_machines_less_than_maximum():
             self.create()
+        else:
+            if states['TOTAL'] == 1:
+                self.logger.info("One machine creating, waiting for BOOT")
+            elif states['TOTAL'] > 0 and states['CREATING'] > 0:
+                self.logger.info("Machines not BOOT yet, waiting")
+            else:
+                self.logger.info("%s deployed yet, no deploy more", states['TOTAL'])
 
     def create(self, created=0):
         """Creates a new or group of new VMs
@@ -141,16 +147,18 @@ class Cycle:
 
         """
         cur = self.db.find({'site': self.site, 'experiment': self.experiment, 'state': {'$nin': ['DELETED']}})
-        states = {'ERROR': 0, 'CREATING': 0, 'BOOTED': 0, 'STARTED': 0, 'ENDED': 0}
+        states = {'ERROR': 0, 'CREATING': 0, 'BOOTED': 0, 'STARTED': 0, 'ENDED': 0, 'TOTAL': 0}
         for computer in cur:
             self.logger.info("%s\t%s" % (computer['hostname'], computer['state'])) if self.logger is not None else False
             states[computer['state']] += 1
+            states['TOTAL'] += 1
         if self.logger is not None:
             self.logger.info("CREATING: %s ; BOOTED: %s ; STARTED: %s ; ERROR: %s ; ENDED: %s" % (states['CREATING'],
                                                                                      states['BOOTED'],
                                                                                      states['STARTED'],
                                                                                      states['ERROR'],
                                                                                      states['ENDED']))
+        return states
 
     def delete(self, hostname):
         """ Delete a VM
@@ -185,7 +193,7 @@ class Cycle:
 
         return self.__deployed_machines_less_than_maximum()
 
-    def __machines_executing_or_only_one_machine_not_started(self):
+    def __only_one_machine_not_started(self):
         """  Check if a new VM can be created
 
         :return: True if there are only one machine in the provider and this one is not executing a job.
