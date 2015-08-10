@@ -28,7 +28,7 @@ def get_cursor(collection, last_id):
 #socket = context.socket(zmq.PUB)
 #socket.bind("tcp://*:%s" % port)
 
-def start_listen(collection, queue):
+def start_listen(collection, queue, logger):
     last_id = last_value(collection)
     while True:
         try:
@@ -36,6 +36,7 @@ def start_listen(collection, queue):
             for msg in cur:
                 last_id = msg['_id']
                 msg.pop('_id', None)
+                logger.debug(json.dumps(msg))
                 queue.put(msg)
             time.sleep(0.1)
         except Exception as e:
