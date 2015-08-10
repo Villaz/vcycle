@@ -217,7 +217,7 @@ class Cycle:
             values[value['_id']['state']] = value['count']
             total += value['count']
 
-        if values['CREATING'] == 0 and total > 0:
+        if 'CREATING' not in values and total > 0:
             return True
         return False
 
