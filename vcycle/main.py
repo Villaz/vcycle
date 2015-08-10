@@ -120,7 +120,7 @@ def do_cycle():
                     locks[experiment][site].release()
                 locks[experiment][site].acquire()
                 multiprocessing.Process(target=create_client, args=(site, experiment)).start()
-        time.sleep(10*60)
+        time.sleep(3*60)
 
 
 def create_client(site, experiment, hostname=None, delete=False, multiple=False):
