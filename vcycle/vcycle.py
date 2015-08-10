@@ -48,7 +48,7 @@ class Cycle:
         """ Starts a new iteration of the cycle.
 
         The iteration first print a list of all VMs deployed in the provider, with their state.
-        After that the function will evaluate the state of each VM and will decide witch one will be deleted from provider.
+        After that the function will evaluate the state of each VM and will decide which one will be deleted from provider.
         Ones the deletion has finished, the function checks if the condition is optimal to create a new or a group
         of new VMs
 
@@ -75,6 +75,8 @@ class Cycle:
         if not self.__machines_executing_or_only_one_machine_not_started() and \
                self.__deployed_machines_less_than_maximum():
             self.__create_vm()
+        elif self.__no_machines_creating() and self.__deployed_machines_less_than_maximum():
+            self.create()
 
     def create(self, created=0):
         """Creates a new or group of new VMs
@@ -204,6 +206,21 @@ class Cycle:
         if total == 1 and 'CREATING' in values and values['CREATING'] == 1:
             if self.logger is not None:
                 self.logger.info("One machine deployed but NOT STARTED yet")
+            return True
+        return False
+
+    def __no_machines_creating(self):
+        cursor = self.db.aggregate([{'$match': {'site': self.site, 'experiment': self.experiment,
+                                    'state': {'$nin': ['DELETED', 'ENDED', 'ERROR']}}},
+                         {'$group': {'_id': {'site': "$site", 'experiment': "$experiment", 'state': "$state"},
+                          'count': {'$sum': 1}}}])
+        values = {}
+        total = 0
+        for value in cursor:
+            values[value['_id']['state']] = value['count']
+            total += value['count']
+
+        if values['CREATING'] == 0 and total > 0:
             return True
         return False
 
