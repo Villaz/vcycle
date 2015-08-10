@@ -8,6 +8,9 @@ except:
 import requests
 import json
 import base64
+import urllib3
+
+urllib3.disable_warnings()
 
 
 class Dbce(CloudConnector):

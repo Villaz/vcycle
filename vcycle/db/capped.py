@@ -31,14 +31,15 @@ def get_cursor(collection, last_id):
 def start_listen(collection, queue):
     last_id = last_value(collection)
     while True:
-        cur = get_cursor(collection, last_id)
-        for msg in cur:
-            last_id = msg['_id']
-            msg.pop('_id', None)
-            #socket.send_multipart([str(msg['site']), json.dumps(msg)])
-            #queue = multiprocessing.Queue()
-            queue.put(msg)
-        time.sleep(0.1)
+        try:
+            cur = get_cursor(collection, last_id)
+            for msg in cur:
+                last_id = msg['_id']
+                msg.pop('_id', None)
+                queue.put(msg)
+            time.sleep(0.1)
+        except Exception as e:
+            print str(e)
 
 
 #queue = multiprocessing.Queue()

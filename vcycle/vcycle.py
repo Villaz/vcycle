@@ -1,9 +1,6 @@
 __author__ = 'luis'
 
-import json
-import requests
-import inspect
-import uuid
+import time
 import moment
 import copy
 from conditions import DeleteBase
@@ -115,14 +112,14 @@ class Cycle:
         # If user_data starts with #! is a script not name template
         if '#!' not in params_to_create['user_data']:
             try:
-                env = Environment(loader=FileSystemLoader('/etc/vcycle/contextualization'))
+                env = Environment(loader=FileSystemLoader('/etc/vcycle/contextualization/'))
             except Exception as e:
                 self.logger.error(str(e))
                 return
             #env = Environment(loader=PackageLoader('contextualization', ''))
             template = env.get_template(params_to_create['user_data'])
             params_to_create['user_data'] = template.render(params_to_create)
-            #open("../tmp/%s" % str(uuid.uuid4()), 'w').write(params_to_create['user_data'])
+            #open("../tmp/%s" % params_to_create['hostname'], 'w').write(params_to_create['user_data'])
 
         params_to_create['logger'] = self.logger if self.logger is not None else False
 
@@ -133,7 +130,7 @@ class Cycle:
                             'state': server['state'],
                             'site': self.site,
                             'experiment': self.experiment,
-                            'createdTime': int(moment.now().epoch())})
+                            'createdTime': int(time.mktime(time.gmtime(time.time())))})
             self.logger.info(" VM %s has been created", server['hostname']) if self.logger is not None else False
         except CloudException as ex:
             self.logger.error(str(ex))
@@ -179,8 +176,8 @@ class Cycle:
         :param created: Number of vms created in the cycle
         :return: True if a VM can be created. False if not
         """
-        if created >= 2:
-            self.logger.info("Thread has created 2 machines, The thread will end") if self.logger is not None else False
+        if created >= 5:
+            self.logger.info("Thread has created 5 machines, The thread will end") if self.logger is not None else False
             return False
 
         if self.__machines_executing_or_only_one_machine_not_started():
