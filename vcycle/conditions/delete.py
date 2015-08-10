@@ -5,8 +5,7 @@ try:
 except:
     from vcycle.conditions import DeleteBase
 
-import moment
-
+import time
 from pymongo import ReturnDocument
 
 
@@ -36,7 +35,7 @@ class Delete(DeleteBase):
     def delete_computers_lost_heartbeat(self, list_servers=[]):
         if 'heartbeat' not in self.info:
             return
-        now = int(moment.now().subtract('seconds', self.info['heartbeat']).epoch(rounding=True))
+        now = int(time.mktime(time.gmtime(time.time()))) - int(self.info['heartbeat'])
         cursor = self.collection.find({'site': self.site,
                                        'experiment': self.experiment,
                                        'state': {'$in': ['STARTED','BOOTED']},
@@ -52,7 +51,7 @@ class Delete(DeleteBase):
     def delete_computers_not_started(self, list_servers=[]):
         if 'boot_time' not in self.info:
             return
-        now = int(moment.now().subtract('seconds', self.info['boot_time']).epoch(rounding=True))
+        now = int(time.mktime(time.gmtime(time.time()))) - int(self.info['boot_time'])
         cursor = self.collection.find({'site': self.site,
                                        'experiment': self.experiment,
                                        'state': 'CREATING',
@@ -67,7 +66,7 @@ class Delete(DeleteBase):
     def delete_computers_booted_and_not_started(self, list_servers=[]):
         if 'start_time' not in self.info or 'boot_time' not in self.info:
             return
-        now = int(moment.now().subtract('seconds', (self.info['boot_time'] + self.info['start_time'])).epoch(rounding=True))
+        now = int(time.mktime(time.gmtime(time.time()))) - (self.info['boot_time'] + self.info['start_time'])
         cursor = self.collection.find({'site': self.site,
                                        'experiment': self.experiment,
                                        'state': 'BOOTED',
@@ -98,7 +97,7 @@ class Delete(DeleteBase):
         if 'wall_time' not in self.info:
             return
 
-        now = moment.now().epoch()
+        now = int(time.mktime(time.gmtime(time.time())))
         cursor = self.collection.find({'site': self.site,
                                        'experiment': self.experiment,
                                        'state': {'$nin': ['DELETED']}})
