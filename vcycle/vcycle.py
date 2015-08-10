@@ -188,7 +188,7 @@ class Cycle:
             self.logger.info("Thread has created 5 machines, The thread will end") if self.logger is not None else False
             return False
 
-        if self.__machines_executing_or_only_one_machine_not_started():
+        if self.__only_one_machine_not_started():
             return False
 
         return self.__deployed_machines_less_than_maximum()
