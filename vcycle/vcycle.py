@@ -71,7 +71,7 @@ class Cycle:
 
         if states['TOTAL'] == 0:
             self.__create_vm()
-        elif states['TOTAL'] > 0 and states['CREATING'] == 0 and self.__deployed_machines_less_than_maximum():
+        elif states['TOTAL'] > 0 and self.__deployed_machines_less_than_maximum(): # and states['CREATING'] == 0
             self.create()
         else:
             if states['TOTAL'] == 1:
