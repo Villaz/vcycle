@@ -34,7 +34,7 @@ def start_listen(collection, queue, logger):
         try:
             cur = get_cursor(collection, last_id)
             for msg in cur:
-                last_id = msg['_id']
+                last_id = msg['time']
                 msg.pop('_id', None)
                 logger.debug(json.dumps(msg))
                 queue.put(msg)
