@@ -69,7 +69,9 @@ class Cycle:
                            info=self.params,
                            logger=self.logger)
 
-        if states['TOTAL'] == 0:
+        if states['TOTAL'] == 0 or (states['TOTAL'] > 0 and
+                                    states['CREATING'] > 0 and
+                                    self.__deployed_machines_less_than_maximum()):
             self.__create_vm()
         elif states['TOTAL'] > 0 and self.__deployed_machines_less_than_maximum(): # and states['CREATING'] == 0
             self.create()
