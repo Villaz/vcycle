@@ -69,7 +69,7 @@ class Cycle:
                            info=self.params,
                            logger=self.logger)
 
-        if self.params['max_machines'] < 1:
+        if int(self.params['max_machines']) < 1:
             return
 
         if states['TOTAL'] == 0 or (states['TOTAL'] > 0 and
