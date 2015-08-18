@@ -136,6 +136,13 @@ class Cycle:
 
         try:
             server = self.client.create(**params_to_create)
+            try:
+                if 'public_ip' in self.params:
+                    import json
+                    server = self.client.add_network_address(server['id'])
+                    print json.dumps(server, indent=2)
+            except Exception as ex:
+                pass
             self.db.insert({'id': server['id'],
                             'hostname': server['hostname'],
                             'state': server['state'],
