@@ -142,7 +142,7 @@ class Cycle:
                     aux = self.client.add_network_address(server['id'])
                     print json.dumps(aux, indent=2)
             except Exception as ex:
-                self.logger.error(str(ex))
+                self.logger.error("Error creating public IP %s", str(ex))
             self.db.insert({'id': server['id'],
                             'hostname': server['hostname'],
                             'state': server['state'],
