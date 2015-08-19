@@ -139,10 +139,10 @@ class Cycle:
             try:
                 if 'public_ip' in self.params:
                     import json
-                    server = self.client.add_network_address(server['id'])
-                    print json.dumps(server, indent=2)
+                    aux = self.client.add_network_address(server['id'])
+                    print json.dumps(aux, indent=2)
             except Exception as ex:
-                pass
+                self.logger.error(str(ex))
             self.db.insert({'id': server['id'],
                             'hostname': server['hostname'],
                             'state': server['state'],
