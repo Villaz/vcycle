@@ -7,20 +7,22 @@ import multiprocessing
 import json
 
 
-
-
-def last_value(collection):
+def last_value(collection, site , experiment):
     global last_id
     try:
-        cur = collection.find({}).sort('$natural',-1).limit(1)[0]
+        cur = collection.find({'site': site, 'experiment': experiment}).sort('$natural', -1).limit(1)[0]
         return cur['time']
     except IndexError,e:
         print e
-        return  -1
+        return -1
 
 
-def get_cursor(collection, last_id):
-    return collection.find({'time': {'$gt': last_id}}, cursor_type=CursorType.EXHAUST).sort('$natural', -1)
+def get_cursor(collection, site, experiment, last_id):
+    return collection.find({'time': {'$gt': last_id},
+                            'site': site,
+                            'experiment': experiment,
+                            'hostname':{'$nin': ['vcycle-dbce-1438627543']}},
+                            cursor_type=CursorType.EXHAUST).sort('$natural', -1)
 
 
 #port = "5556"
@@ -28,11 +30,11 @@ def get_cursor(collection, last_id):
 #socket = context.socket(zmq.PUB)
 #socket.bind("tcp://*:%s" % port)
 
-def start_listen(collection, queue, logger):
-    last_id = last_value(collection)
+def start_listen(collection, queue, site, experiment, logger):
+    last_id = last_value(collection, site, experiment)
     while True:
         try:
-            cur = get_cursor(collection, last_id)
+            cur = get_cursor(collection, site, experiment, last_id)
             for msg in cur:
                 last_id = msg['time']
                 msg.pop('_id', None)

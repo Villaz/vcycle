@@ -50,7 +50,14 @@ def start_process(conf=u'/etc/vcycle/vcycle.conf'):
                                                        'time': -1})
     capped_collection = client[database_name][capped_name]
 
-    multiprocessing.Process(target=capped.start_listen, args=(capped_collection, queue, get_log("db","db"))).start()
+    for experiment in configuration_file['vcycle']['experiments']:
+        for site in configuration_file['vcycle']['experiments'][experiment]['sites']:
+            multiprocessing.Process(target=capped.start_listen, args=(capped_collection,
+                                                                      queue,
+                                                                      site,
+                                                                      experiment,
+                                                                      get_log("db", "db")))\
+                .start()
     multiprocessing.Process(target=process_queue).start()
     multiprocessing.Process(target=do_cycle).start()
 
