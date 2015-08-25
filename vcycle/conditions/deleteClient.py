@@ -36,20 +36,21 @@ class Delete(DeleteBase):
     def drop_servers_not_in_db(self, list_servers=[]):
         deleted = []
         ids = [vm['id'] for vm in list_servers]
-        for id in ids:
-            if self.collection.find({'id': id,
-                                     'site': self.site,
-                                     'experiment': self.experiment,
-                                     'state': {'$nin': ['DELETED']}}).count() == 0:
-                if self.logger:
+        db_ids = [ vm['id'] for vm in self.collection.find({'id': {'$in': ids},
+                                                    'site': self.site,
+                                                    'experiment': self.experiment,
+                                                    'state': {'$nin': ['DELETED']}})]
+        for id in list(set(ids) - set(db_ids)):
+            if self.logger:
                     self.logger.info("VM %s not in DB. Delete from provider", id)
-                try:
-                    self.client.delete(id)
-                    deleted.append({'id': id})
-                except CloudException as ex:
-                    if self.logger is not None:
-                        self.logger.warn(str(ex))
+            try:
+                self.client.delete(id)
+                deleted.append({'id': id})
+            except CloudException as ex:
+                if self.logger is not None:
+                    self.logger.warn(str(ex))
         return DeleteBase.process_list(list_servers, deleted)
+
 
     def drop_db_servers_not_in_provider(self, list_servers=[]):
         deleted = []
