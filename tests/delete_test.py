@@ -6,6 +6,7 @@ from vcycle.conditions import deleteClient
 from pymongo import MongoClient
 import unittest
 import moment
+import time
 
 db = MongoClient('mongodb://luis:Espronceda@ds047911.mongolab.com:47911/infinity').infinity
 
@@ -35,8 +36,8 @@ class Delete(unittest.TestCase):
     def test_delete_computers_lost_heartbeat(self):
         info = {'connector': {}, 'heartbeat': 400}
         db.test.delete_many({})
-        bad_heartbeat = int(moment.now().subtract('seconds', 800).epoch(rounding=True))
-        good_heartbeat = int(moment.now().subtract('seconds', 100).epoch(rounding=True))
+        bad_heartbeat = int(time.mktime(time.gmtime(time.time()))) - 800
+        good_heartbeat = int(time.mktime(time.gmtime(time.time()))) - 100
         db.test.insert({'id': 1, 'hostname': 1, 'state': 'BOOTED', 'site': 'test', 'experiment': 'test', 'heartbeat':bad_heartbeat })
         db.test.insert({'id': 2, 'hostname': 2, 'state': 'BOOTED', 'site': 'test', 'experiment': 'test', 'heartbeat':good_heartbeat})
         db.test.insert({'id': 3, 'hostname': 3, 'state': 'STARTED','site': 'test', 'experiment': 'test', 'heartbeat':bad_heartbeat})
@@ -52,8 +53,8 @@ class Delete(unittest.TestCase):
     def test_delete_computers_not_started(self):
         info = {'connector': {}, 'boot_time': 400}
         db.test.delete_many({})
-        bad_boot = int(moment.now().subtract('seconds', 800).epoch(rounding=True))
-        good_boot = int(moment.now().subtract('seconds', 100).epoch(rounding=True))
+        bad_boot = int(time.mktime(time.gmtime(time.time()))) - 800
+        good_boot = int(time.mktime(time.gmtime(time.time()))) - 100
 
         db.test.insert({'id': 1, 'hostname': 1, 'state': 'CREATING', 'site': 'test', 'experiment': 'test', 'createdTime':bad_boot })
         db.test.insert({'id': 2, 'hostname': 2, 'state': 'CREATING', 'site': 'test', 'experiment': 'test', 'createdTime':good_boot})
@@ -67,8 +68,8 @@ class Delete(unittest.TestCase):
     def test_delete_computers_booted_and_not_started(self):
         info = {'connector': {}, 'boot_time': 400, 'start_time':500}
         db.test.delete_many({})
-        bad_boot = int(moment.now().subtract('seconds', 1000).epoch(rounding=True))
-        good_boot = int(moment.now().subtract('seconds', 700).epoch(rounding=True))
+        bad_boot = int(time.mktime(time.gmtime(time.time()))) - 1000
+        good_boot = int(time.mktime(time.gmtime(time.time()))) - 700
 
         db.test.insert({'id': 1, 'hostname': 1, 'state': 'BOOTED', 'site': 'test', 'experiment': 'test', 'createdTime':bad_boot })
         db.test.insert({'id': 2, 'hostname': 2, 'state': 'BOOTED', 'site': 'test', 'experiment': 'test', 'createdTime':good_boot})
@@ -95,8 +96,8 @@ class Delete(unittest.TestCase):
     def test_delete_walltime_computers(self):
         info = {'connector': {}, 'wall_time': 1000}
         db.test.delete_many({})
-        bad_walltime = int(moment.now().subtract('seconds', 1100).epoch(rounding=True))
-        good_walltime = int(moment.now().subtract('seconds', 700).epoch(rounding=True))
+        bad_walltime =  int(time.mktime(time.gmtime(time.time()))) - 1100
+        good_walltime = int(time.mktime(time.gmtime(time.time()))) - 700
 
         db.test.insert({'id': 1, 'hostname': 1, 'state': 'STARTED',
                         'site': 'test', 'experiment': 'test', 'createdTime': bad_walltime})
