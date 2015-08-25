@@ -61,6 +61,16 @@ class Cycle:
                 self.logger.error(e.message)
             return
 
+        # Sometimes the provider returns a wrong list of VMs
+        # To avoid the deletion of good vms, if one machine is deleted in DB but exists in the client
+        # the vm will be changed to a valid state.
+        # If the machine is not valid will be deleted by heartbeat
+        ids = [vm['id'] for vm in list_vms_provider]
+        self.db.update_many({'id': {'$in': ids}, 'state': 'DELETED' ,
+                             'boot': {'$exists': True}}, {'$set': {'state': 'BOOTED'}})
+        self.db.update_many({'id': {'$in': ids}, 'state': 'DELETED',
+                             'boot': {'$exists': False}}, {'$set': {'state': 'CREATING'}})
+
         DeleteBase.execute(list_vms_provider,
                            collection=self.db,
                            site=self.site,
@@ -68,6 +78,8 @@ class Cycle:
                            client=self.client,
                            info=self.params,
                            logger=self.logger)
+
+
 
         if int(self.params['max_machines']) < 1:
             return
