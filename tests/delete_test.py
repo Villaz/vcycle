@@ -12,8 +12,8 @@ db = MongoClient('mongodb://luis:Espronceda@ds047911.mongolab.com:47911/infinity
 
 
 class Foo:
-    def delete(self, params):
-        pass
+    def delete(self, identifier):
+        return identifier
 
 
 class Delete(unittest.TestCase):

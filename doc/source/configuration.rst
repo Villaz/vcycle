@@ -16,11 +16,6 @@ How looks like?
           collection: ""
           capped_collection: ""
 
-      ganglia:
-        ganglia-xxx:
-          host: ""
-          conf: ""
-
       connectors:
         azure-win:
           type: "azure"
@@ -32,7 +27,6 @@ How looks like?
             experiment: "cool"
             hostkey: ""
             authorized_keys: ""
-            ganglia: ""
             user_data: ""
             queue: ""
             username: ""
@@ -67,28 +61,6 @@ VMs to update their own information. **IMPORTANT** the DB port must be open to i
         collection: "collection_to_store_vm_information"
         capped_collection: "collection_to_store_the_messages_send_by_vms"
 
-
-
-Ganglia
----------
-
-This key is only used if you want monitor your VMs.
-You can define as many ganglia servers you want, and attach then to the different experiments.
-
-For each ganglia server you need to specify:
-
-- host : Where is ganglia? (without http and www, only the host).
-- conf : The URL to the configuration file, the configuration file has a JSON format with the name of the clusters and the port they used to retrieve the information.
-
-.. code-block:: yaml
-
-  ganglia:
-    ganglia-1:
-      host: "ganglia_serv1.com"
-      conf: "http://ganglia_serv1.com/file.conf"
-    ganglia-2:
-      host: "ganglia_serv2.com"
-      conf: "http://ganglia_serv2.com/file.conf"
 
 Connectors
 -----------
@@ -154,12 +126,10 @@ you can define your own parameters to use in the contextualization.
   experiments:
     HALF-LIFE-3:
         user_data: "file://<path>"
-        ganglia: "ganglia-dbce" #If you use ganglia, you need to put here the identifier
         custom-param: "Gordooon!"
 
         sites: #Your providers
 
-**Notice that the experiment name must be in CAPITAL LETTERS!**
 
 Sites
 -----------
@@ -169,7 +139,6 @@ In this part you need to define all the needed parameters to create the VMs.
 The mandatory parameters are: connector, prefix, image, flavor, max_machines.
 Like in experiment section, you are free to add new parameters.
 
-**Notice that the site name must be in CAPITAL LETTERS!**
 
 .. code-block:: yaml
 

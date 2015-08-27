@@ -20,7 +20,7 @@ Few words: Vcycle is a VM lifecycle manager.
 Ok...more words:
 
 Vcycle is a VM lifecycle manager, it controls the creation and the destruction of the VMs in a hybrid cloud enviroment.
-The management of the lifecycle is Job oriented. If there are jobs available to execute vcycle will create new VMs,
+The management of the lifecycle is Job oriented, if there are jobs available to execute vcycle will create new VMs,
 if not, no more VMs will be created.
 
 Vcycle support the deploy of VMs in different clouds, including Openstack, Azure, DBCE , and OCCI.
@@ -33,6 +33,13 @@ Clone the repository from git:
 .. code-block:: bash
 
    git clone -b new https://github.com/Villaz/vcycle.git
+
+Install vcycle
+
+.. code-block:: bash
+
+   python setup.py install
+
 
 Create a configuration file and put it in /etc/vcycle/vcycle.conf
 
@@ -64,9 +71,9 @@ Important Paths
 
 **/etc/vcycle/vcycle.conf** : The configuration file to use vcycle.
 
-**/etc/vcycle/hostkeys/** : Good place to store the hostkeys.
+**/etc/vcycle/keys/** : Good place to store the hostkeys.
 
-**/etc/vcycle/auth_keys/** : Good place to store the public keys.
+**/etc/vcycle/authorized_keys/** : Good place to store the public keys.
 
 **/etc/vcycle/proxies/** : Folder to store authorization proxies (Uses with Occi).
 
@@ -85,6 +92,7 @@ Contents:
 
    configuration
    user_data
+   commands
    docker
    api
 
