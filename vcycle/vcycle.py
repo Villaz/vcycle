@@ -132,8 +132,13 @@ class Cycle:
             params_to_create[params_to_create['experiment']] = True
         params_to_create['experiment'] = self.experiment
 
+        if 'params' in params_to_create:
+            for param in params_to_create['params']:
+                params_to_create[param] = params_to_create['params'][param]
+
         # If user_data starts with #! is a script not name template
         if '#!' not in params_to_create['user_data']:
+
             try:
                 env = Environment(loader=FileSystemLoader('/etc/vcycle/contextualization/'))
             except Exception as e:
