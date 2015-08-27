@@ -82,6 +82,7 @@ class Azure(CloudConnector):
             sms.delete_hosted_service(identifier, True)
         except Exception as e:
             raise CloudException(str(e))
+        return identifier
 
     def create(self, **kwargs):
         """Creates a new VM
@@ -177,8 +178,8 @@ class Azure(CloudConnector):
                                                                                          protocol="TCP",
                                                                                          port=22,
                                                                                          local_port=22))
-
-        result = sms.create_virtual_machine_deployment(name,
+        try:
+            result = sms.create_virtual_machine_deployment(name,
                                               name,
                                               'production',
                                               name,
@@ -189,6 +190,20 @@ class Azure(CloudConnector):
                                               role_size=flavor,
                                               vm_image_name=image,
                                               provision_guest_agent=True)
+        except:
+            media_link = "https://vhdlvillazo.blob.core.windows.net/vhd/%s.vhd" % name
+            os_hd = OSVirtualHardDisk(image, media_link)
+
+            result = sms.create_virtual_machine_deployment(service_name=name,
+                deployment_name=name,
+                deployment_slot='production',
+                label=name,
+                role_name=name,
+                network_config= network_set,
+                system_config=configuration_set,
+                os_virtual_hard_disk=os_hd,
+                role_size=flavor,
+                provision_guest_agent=True)
         # The VM is created async, we not wait for confirmation. Assume the VM is created.
         '''
         try:

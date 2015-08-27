@@ -66,6 +66,7 @@ class Dbce(CloudConnector):
                                                           identifier),
                                    headers=headers,
                                    verify=False)
+        return identifier
 
     def create(self, **kwargs):
         """Creates a new VM

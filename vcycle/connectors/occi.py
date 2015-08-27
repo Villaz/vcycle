@@ -25,7 +25,7 @@ class Occi(CloudConnector):
         CloudConnector.__init__(self)
         self.params = kwargs
         self.session = requests.Session()
-        self.session.mount(kwargs['endpoint'], requests.adapters.HTTPAdapter(pool_connections=20, max_retries=3))
+        self.session.mount(kwargs['endpoint'], requests.adapters.HTTPAdapter(pool_connections=10, max_retries=3))
         self.__auth()
         self._get_definitions()
 
@@ -37,9 +37,7 @@ class Occi(CloudConnector):
         In the case that the token exists, the function check if it is valid or it has expired. In the case the
         token has expired, a new authorization is requests to renew it.
         """
-        if self.token is None:
-            return None
-        if self.expires < int(time.time()):
+        if self.token is None or self.expires < int(time.time()) :
             self.__auth()
 
     def __auth(self):
@@ -79,19 +77,14 @@ class Occi(CloudConnector):
 
         uris = [line[line.find(":")+2:] for line in response.split("\n")[1:]]
         uris = ["%s/compute/%s" % (self.params['endpoint'], url[url.rfind("/")+1:]) for url in uris]
-
-        import threading
-        threadList = []
         vms = []
-        for arg in uris:
-            thr = threading.Thread(target=self.__describe, args=(arg, self.token, vms))
-            threadList.append(thr)
-            time.sleep(0.1)
-            thr.start()
+        for uri in uris:
+            id = uri[uri.rfind('/')+1:]
+            if id.startswith('http'):
+                id = uri[uri.rfind('/')+1:]
+            vms.append({'id': id, 'hostname': 'UNKNOWN', 'state': 'UNKNOWN'})
 
-        for th in threadList:
-            th.join()
-        return [vm for vm in vms if prefix is None or prefix in vm['hostname'] or vm['hostname'] == 'UNKNOWN']
+        return vms
 
     def delete(self, identifier):
         """Deletes a VM in the provider
@@ -102,15 +95,23 @@ class Occi(CloudConnector):
         headers = {'Accept': 'application/occi+json',
                    'Content-Type': 'application/occi+json'
         }
-        #if self.token is not None:
-        #    headers["X-Auth-Token"] = self.token
-        response = self.session.delete("%s/compute/%s" % (self.params['endpoint'], identifier),
+        try:
+            response = self.session.delete("%s/compute/%s" % (self.params['endpoint'], identifier),
                                        cert=self.params['proxy'],
                                        headers=headers,
-                                       timeout=60,
+                                       timeout=30,
                                        verify=False)
-        if response.status_code != 200:
-            raise CloudException(response.text)
+            if response.status_code != 200:
+                raise CloudException(response.text)
+        except Exception as ex:
+            print ex
+            self.session.close()
+            self.session = requests.Session()
+            self.session.mount(self.params['endpoint'], requests.adapters.HTTPAdapter(pool_connections=10, max_retries=3))
+            self.token = None
+            raise CloudException(str(ex))
+        return identifier
+
 
     def create(self, **kwargs):
         """Creates a new VM in the provider. Received as parameter a dictionary of values.
@@ -214,6 +215,7 @@ class Occi(CloudConnector):
                 computer['state'] = 'CREATING'
             else:
                 computer['state'] = 'ENDED'
+        print computer
         vms.append(computer)
 
     def _get_definitions(self):

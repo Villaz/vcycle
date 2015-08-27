@@ -7,6 +7,11 @@ except:
     from vcycle.conditions import DeleteBase
     from vcycle.connectors import CloudException
 
+import pathos.multiprocessing as mp
+
+
+def testing(x):
+    return x[0](x[1])
 
 class Delete(DeleteBase):
 
@@ -40,16 +45,14 @@ class Delete(DeleteBase):
                                                     'site': self.site,
                                                     'experiment': self.experiment,
                                                     'state': {'$nin': ['DELETED']}})]
-        for id in list(set(ids) - set(db_ids)):
+
+        pool = mp.ProcessingPool(4)
+        ids = pool.map(self.client.delete, list(set(ids) - set(db_ids)))
+
+        for id in ids:
             if self.logger:
                     self.logger.info("VM %s not in DB. Delete from provider", id)
-            try:
-                self.client.delete(id)
-                deleted.append({'id': id})
-            except CloudException as ex:
-                if self.logger is not None:
-                    self.logger.warn(str(ex))
-        return DeleteBase.process_list(list_servers, deleted)
+        return DeleteBase.process_list(list_servers, [{'id':id} for id in ids])
 
 
     def drop_db_servers_not_in_provider(self, list_servers=[]):
@@ -59,13 +62,12 @@ class Delete(DeleteBase):
                                        'site': self.site,
                                        'state': {'$nin': ['DELETED']},
                                        'id': {'$nin': vm_ids}})
-        for vm in cursor:
-            deleted.append(vm)
-            if self.logger:
-                self.logger.info("VM %s not in client, change state to delete", vm['hostname'])
-            self.collection.find_one_and_update({'hostname': vm['hostname']},
-                                                {'$set': {'state': 'DELETED'}})
-        return DeleteBase.process_list(list_servers, deleted)
+        ids_to_delete = [vm['id'] for vm in cursor]
+        if self.logger:
+            [self.logger.info("VM %s not in client, change state to delete", vm['hostname']) for vm in cursor]
+        self.collection.update_many({'id': {'$in':ids_to_delete}},
+                                    {'$set': {'state': 'DELETED'}})
+        return DeleteBase.process_list(list_servers, [vm for vm in cursor])
 
     def db_servers_where_provider_has_status_error_stopped(self, list_servers=[]):
         deleted = []
@@ -76,12 +78,14 @@ class Delete(DeleteBase):
                     self.logger.info("VM %s with state %s", vm['hostname'], vm['state'])
                 ids.append(vm['id'])
         cursor = self.collection.find({'id': {'$in': ids},
-                              'state': {'$nin': ['DELETED','ENDED']}})
-        for vm in cursor:
-            deleted.append(vm)
-            self.client.delete(vm['id'])
-            if self.logger:
-                self.logger.info("VM %s with provider state STOPPED/ERROR , DELETING VM", vm['hostname'])
-            self.collection.find_one_and_update({'id': vm['id']},
-                                           {'$set': {'state': 'DELETED'}})
-        return DeleteBase.process_list(list_servers, deleted)
+                                       'state': {'$nin': ['DELETED','ENDED']}})
+
+        ids_to_delete = [vm['id'] for vm in cursor]
+        pool = mp.ProcessingPool(4)
+        deleted_ids = pool.map(self.client.delete, ids_to_delete)
+        self.collection.update_many({'id': {'$in': deleted_ids}},{'$set': {'state': 'DELETED'}})
+
+        if self.logger:
+            [self.logger.info("VM %s with provider state STOPPED/ERROR , DELETING VM", vm['hostname']) for vm in cursor]
+
+        return DeleteBase.process_list(list_servers, [{'id': id} for id in ids])

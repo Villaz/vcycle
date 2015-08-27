@@ -73,4 +73,7 @@ class DeleteBase(object):
             except CloudException as ex:
                 if logger is not None:
                     logger.warn(str(ex))
+            except Exception as ex:
+                if logger is not None:
+                    logger.warn(str(ex))
         return servers

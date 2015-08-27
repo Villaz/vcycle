@@ -7,7 +7,7 @@ except:
 
 import time
 from pymongo import ReturnDocument
-
+import pathos.multiprocessing as mp
 
 class Delete(DeleteBase):
 
@@ -24,13 +24,12 @@ class Delete(DeleteBase):
         cursor = self.collection.find({'site': self.site,
                                        'experiment': self.experiment,
                                        'state': {'$in': ['ENDED', 'ERROR', 'STOPPED']}})
-        for vm in cursor:
-            if self.logger is not None:
-                self.logger.info("Deleting VM %s with state ENDED/ERROR/STOPPED" % vm['hostname'])
-            self.client.delete(vm['id'])
-            self.collection.find_one_and_update({'id': vm['id']},
-                                                {'$set': {'state': 'DELETED'}},
-                                                return_document=ReturnDocument.AFTER)
+        ids_to_delete = [vm['id'] for vm in cursor]
+        pool = mp.ProcessingPool(4)
+        ids = pool.map(self.client.delete, ids_to_delete)
+        self.collection.update_many({'id': {'$in': ids_to_delete}},{'$set': {'state': 'DELETED'}})
+        if self.logger is not None:
+            [self.logger.info("Deleting VM %s with state ENDED/ERROR/STOPPED" % vm['hostname']) for vm in cursor]
 
     def delete_computers_lost_heartbeat(self, list_servers=[]):
         if 'heartbeat' not in self.info:

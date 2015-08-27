@@ -132,7 +132,7 @@ def do_cycle():
                     locks[experiment][site].release()
                 locks[experiment][site].acquire()
                 multiprocessing.Process(target=create_client, args=(site, experiment)).start()
-        time.sleep(3*60)
+        time.sleep(10*60)
 
 
 def create_client(site, experiment, hostname=None, delete=False, multiple=False):
@@ -143,6 +143,8 @@ def create_client(site, experiment, hostname=None, delete=False, multiple=False)
                          site=site,
                          experiment=experiment,
                          params=configuration_file['vcycle']['experiments'][experiment]['sites'][site],
+                         collection=configuration_file['vcycle']['db']['mongo']['collection'],
+                         capped=configuration_file['vcycle']['db']['mongo']['capped_collection'],
                          logger=get_log(site, experiment))
     if delete:
         process = multiprocessing.Process(target=cycle.delete, args=(hostname,))
@@ -183,5 +185,5 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    start_process()
+    start_process('../conf/vcycle.conf')
 

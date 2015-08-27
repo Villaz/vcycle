@@ -64,6 +64,7 @@ class Openstack(CloudConnector):
                 return
             else:
                 raise CloudException(e.message)
+        return identifier
 
     def create(self, **kwargs):
         """

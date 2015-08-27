@@ -16,7 +16,7 @@ class Cycle:
     based on these knowledgment
 
     """
-    def __init__(self, client=None, db=None, site=None, experiment=None, params=None, logger=None):
+    def __init__(self, client=None, db=None, site=None, experiment=None, params=None, logger=None, collection=None, capped=None):
         """ Init function
 
         Initialize a new instance of Cycle.
@@ -33,6 +33,8 @@ class Cycle:
         :param params.user_data: script to contextualize the VM
         :param params.max_machines: Number of the max machines to deploy in the provider
         :param logger:
+        :param collection: MongoDB collection name
+        :param capped: MongoDB capped collection name
          """
         self.client = client
         self.db = db
@@ -40,6 +42,8 @@ class Cycle:
         self.experiment = experiment
         self.params = params
         self.logger = logger
+        self.collection = collection
+        self.capped = capped
 
     def iterate(self):
         """ Starts a new iteration of the cycle.
@@ -65,11 +69,6 @@ class Cycle:
         # To avoid the deletion of good vms, if one machine is deleted in DB but exists in the client
         # the vm will be changed to a valid state.
         # If the machine is not valid will be deleted by heartbeat
-        ids = [vm['id'] for vm in list_vms_provider]
-        self.db.update_many({'id': {'$in': ids}, 'state': 'DELETED' ,
-                             'boot': {'$exists': True}}, {'$set': {'state': 'BOOTED'}})
-        self.db.update_many({'id': {'$in': ids}, 'state': 'DELETED',
-                             'boot': {'$exists': False}}, {'$set': {'state': 'CREATING'}})
 
         DeleteBase.execute(list_vms_provider,
                            collection=self.db,
@@ -78,8 +77,6 @@ class Cycle:
                            client=self.client,
                            info=self.params,
                            logger=self.logger)
-
-
 
         if int(self.params['max_machines']) < 1:
             return
@@ -127,6 +124,8 @@ class Cycle:
         params_to_create = copy.deepcopy(self.params)
         params_to_create['hostname'] = params_to_create['id'] = "%s-%s" % (self.params['prefix'], str(int(moment.now().epoch())))
         params_to_create['site'] = self.site
+        params_to_create['collection'] = self.collection
+        params_to_create['capped'] = self.capped
 
         if 'experiment' in params_to_create:
             params_to_create[params_to_create['experiment']] = True
@@ -134,15 +133,17 @@ class Cycle:
 
         # If user_data starts with #! is a script not name template
         if '#!' not in params_to_create['user_data']:
+            '''
             try:
                 env = Environment(loader=FileSystemLoader('/etc/vcycle/contextualization/'))
             except Exception as e:
                 self.logger.error(str(e))
                 return
-            #env = Environment(loader=PackageLoader('contextualization', ''))
+            '''
+            env = Environment(loader=PackageLoader('contextualization', ''))
             template = env.get_template(params_to_create['user_data'])
             params_to_create['user_data'] = template.render(params_to_create)
-            #open("../tmp/%s" % params_to_create['hostname'], 'w').write(params_to_create['user_data'])
+            open("../tmp/%s" % params_to_create['hostname'], 'w').write(params_to_create['user_data'])
 
         params_to_create['logger'] = self.logger if self.logger is not None else False
 
