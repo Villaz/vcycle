@@ -24,13 +24,13 @@ class Delete(DeleteBase):
         cursor = self.collection.find({'site': self.site,
                                        'experiment': self.experiment,
                                        'state': {'$in': ['ENDED', 'ERROR', 'STOPPED']}})
+        ids_to_delete = []
         for vm in cursor:
             if self.logger is not None:
                 self.logger.info("Deleting VM %s with state ENDED/ERROR/STOPPED" % vm['hostname'])
             self.client.delete(vm['id'])
-            self.collection.find_one_and_update({'id': vm['id']},
-                                                {'$set': {'state': 'DELETED'}},
-                                                return_document=ReturnDocument.AFTER)
+            ids_to_delete.append(vm['id'])
+        self.collection.update_many({'id': {'$in': ids_to_delete}},{'$set': {'state': 'DELETED'}})
 
     def delete_computers_lost_heartbeat(self, list_servers=[]):
         if 'heartbeat' not in self.info:
@@ -40,13 +40,13 @@ class Delete(DeleteBase):
                                        'experiment': self.experiment,
                                        'state': {'$in': ['STARTED','BOOTED']},
                                        'heartbeat': {'$lt': now}})
+        ids_to_delete = []
         for vm in cursor:
             if self.logger is not None:
                 self.logger.info("Deleting VM %s which lost heartbeat" % vm['hostname'])
             self.client.delete(vm['id'])
-            self.collection.find_one_and_update({'id': vm['id']},
-                                                {'$set': {'state': 'DELETED'}},
-                                                return_document=ReturnDocument.AFTER)
+            ids_to_delete.append(vm['id'])
+        self.collection.update_many({'id': {'$in': ids_to_delete}},{'$set': {'state': 'DELETED'}})
 
     def delete_computers_not_started(self, list_servers=[]):
         if 'boot_time' not in self.info:
@@ -56,12 +56,13 @@ class Delete(DeleteBase):
                                        'experiment': self.experiment,
                                        'state': 'CREATING',
                                        'createdTime': {'$lt': now}})
+        ids_to_delete = []
         for vm in cursor:
             if self.logger is not None:
                 self.logger.info("Deleting VM %s which not BOOT" % vm['hostname'])
             self.client.delete(vm['id'])
-            self.collection.find_one_and_update({'id': vm['id']},
-                                                {'$set': {'state': 'DELETED'}})
+            ids_to_delete.append(vm['id'])
+        self.collection.update_many({'id': {'$in': ids_to_delete}},{'$set': {'state': 'DELETED'}})
 
     def delete_computers_booted_and_not_started(self, list_servers=[]):
         if 'start_time' not in self.info or 'boot_time' not in self.info:
@@ -71,27 +72,25 @@ class Delete(DeleteBase):
                                        'experiment': self.experiment,
                                        'state': 'BOOTED',
                                        'createdTime': {'$lt': now}})
+        ids_to_delete = []
         for vm in cursor:
             if self.logger is not None:
                 self.logger.info("Deleting VM %s which not START" % vm['hostname'])
             self.client.delete(vm['id'])
-            self.collection.find_one_and_update({'id': vm['id']},
-                                                {'$set': {'state': 'DELETED'}})
+            ids_to_delete.append(vm['id'])
+        self.collection.update_many({'id': {'$in': ids_to_delete}},{'$set': {'state': 'DELETED'}})
 
     def delete_ended_computers(self, list_servers=[]):
         cursor = self.collection.find({'site': self.site,
                                        'experiment': self.experiment,
                                        'state': 'ENDED'})
-        vms = []
+        ids_to_delete = []
         for vm in cursor:
             if self.logger is not None:
                 self.logger.info("Deleting VM %s with state ENDED" % vm['hostname'])
-            vms.append(vm)
+            ids_to_delete.append(vm['id'])
             self.client.delete(vm['id'])
-            self.collection.find_one_and_update({'id': vm['id'],
-                                                 'site': self.site,
-                                                 'experiment': self.experiment},
-                                                {'$set': {'state': 'DELETED'}})
+        self.collection.update_many({'id': {'$in': ids_to_delete}},{'$set': {'state': 'DELETED'}})
 
     def delete_walltime_computers(self, list_servers=[]):
         if 'wall_time' not in self.info:
@@ -101,16 +100,14 @@ class Delete(DeleteBase):
         cursor = self.collection.find({'site': self.site,
                                        'experiment': self.experiment,
                                        'state': {'$nin': ['DELETED']}})
-
+        ids_to_delete = []
         for vm in cursor:
             if (now - vm['createdTime']) > self.info['wall_time']:
                 if self.logger is not None:
                     self.logger.info("Deleting VM %s with walltime" % vm['hostname'])
                 self.client.delete(vm['id'])
-                self.collection.find_one_and_update({'id': vm['id'],
-                                                     'site': self.site,
-                                                     'experiment': self.experiment},
-                                                    {'$set': {'state': 'DELETED'}})
+                ids_to_delete.append(vm['id'])
+        self.collection.update_many({'id': {'$in': ids_to_delete}},{'$set': {'state': 'DELETED'}})
 
     def merge_duplicate_entries(self, list_servers=[]):
         cursor = self.collection.aggregate([{'$match': {'site': self.site, 'experiment': self.experiment}},

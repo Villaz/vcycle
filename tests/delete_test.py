@@ -236,6 +236,17 @@ class Delete(unittest.TestCase):
         new_servers = d.execute_all(list_servers)
         self.assertEqual(new_servers, None)
 
+    def test_all_vms_are_in_provider_and_db(self):
+        info = {'connector': {}, 'boot_time': 400, 'start_time': 500, 'heartbeat': 600, 'walltime': 1700}
+        list_servers = [{'id': i, 'hostname': i, 'state': 'STARTED', 'site':'test', 'experiment':'test'} for i in range(1000)]
+        db.test.delete_many({})
+        db.test.insert_many(list_servers)
+
+        d = deleteClient.Delete(collection=db.test, site='test', experiment='test', client=Foo(), info=info)
+        new_servers = d.execute_all(list_servers)
+        self.assertEqual(db.test.find({'state':'STARTED'}).count(), 1000)
+        self.assertEqual(len(new_servers), 1000)
+
 
 #if __name__ == '__main__':
 #    unittest.main()
