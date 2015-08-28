@@ -55,6 +55,7 @@ class Cycle:
         try:
             self.logger.debug("Listing VMs from provider")
             list_vms_provider = self.client.list(self.params['prefix'])
+            self.logger.debug("Provider returns: %s VMs" % len(list_vms_provider))
             self.logger.debug("Ended listing VMs from provider")
         except Exception, e:
             if self.logger is not None:
@@ -66,7 +67,7 @@ class Cycle:
         # the vm will be changed to a valid state.
         # If the machine is not valid will be deleted by heartbeat
         ids = [vm['id'] for vm in list_vms_provider]
-        self.db.update_many({'id': {'$in': ids}, 'state': 'DELETED' ,
+        self.db.update_many({'id': {'$in': ids}, 'state': 'DELETED',
                              'boot': {'$exists': True}}, {'$set': {'state': 'BOOTED'}})
         self.db.update_many({'id': {'$in': ids}, 'state': 'DELETED',
                              'boot': {'$exists': False}}, {'$set': {'state': 'CREATING'}})
