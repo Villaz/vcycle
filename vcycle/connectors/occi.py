@@ -77,10 +77,13 @@ class Occi(CloudConnector):
         if response is None:
             return []
 
-        uris = [line[line.find(":")+2:] for line in response.split("\n")[1:]]
-        uris = ["%s/compute/%s" % (self.params['endpoint'], url[url.rfind("/")+1:]) for url in uris]
-
+        uris = [line[line.rfind('/')+1:] for line in response.split("\n")[1:]]
+        #uris = [line[line.find(":")+2:] for line in response.split("\n")[1:]]
+        return [{'id': uri, 'hostname': uri, 'state': 'CREATING'} for uri in uris]
+        #uris = ["%s/compute/%s" % (self.params['endpoint'], url[url.rfind("/")+1:]) for url in uris]
+        '''
         import threading
+
         threadList = []
         vms = []
         for arg in uris:
@@ -92,6 +95,7 @@ class Occi(CloudConnector):
         for th in threadList:
             th.join()
         return [vm for vm in vms if prefix is None or prefix in vm['hostname'] or vm['hostname'] == 'UNKNOWN']
+        '''
 
     def delete(self, identifier):
         """Deletes a VM in the provider
@@ -100,43 +104,12 @@ class Occi(CloudConnector):
         """
         import multiprocessing
         self.__check_token()
-        process = multiprocessing.Process(target=_delete, args=("%s/compute/%s" % (self.params['endpoint'], identifier), identifier, self.token,))
+        #_delete("%s/compute/%s" % (self.params['endpoint'], identifier), self.token)
+        process = multiprocessing.Process(target=_delete,
+                                          args=("%s/compute/%s" % (self.params['endpoint'], identifier), self.token,))
         process.start()
-        process.join(30)
+        process.join()
         return identifier
-        #_delete("%s/compute/%s" % (self.params['endpoint'], identifier), identifier, self.token)
-        '''
-    if method and method.upper() == 'DELETE':
-      self.curl.setopt(pycurl.CUSTOMREQUEST, 'DELETE')
-        headers = {'Accept': 'application/occi+json',
-                   'Content-Type': 'application/occi+json',
-                   'X-Auth-Token': self.token
-        }
-        import urllib3
-        http = urllib3.PoolManager(retries=0, block=False).connection_from_url("%s/compute/%s" % (self.params['endpoint'], identifier))
-        http.cert = self.params['proxy']
-        try:
-            r = http.request('DELETE', "%s/compute/%s" % (self.params['endpoint'], identifier), headers=headers)
-            print r
-        except Exception,e:
-            print e
-        try:
-            response = self.session.delete("%s/compute/%s" % (self.params['endpoint'], identifier),
-                                           cert=self.params['proxy'],
-                                           headers=headers,
-                                           timeout=60,
-                                           verify=False)
-            if response.status_code != 200:
-                raise CloudException(response.text)
-        except Exception as ex:
-            print ex
-            self.session.close()
-            self.session = requests.Session()
-            self.session.mount(self.params['endpoint'], requests.adapters.HTTPAdapter(pool_connections=10, max_retries=3))
-            self.token = None
-            raise CloudException(str(ex))
-        return identifier
-        '''
 
     def create(self, **kwargs):
         """Creates a new VM in the provider. Received as parameter a dictionary of values.
@@ -248,8 +221,6 @@ class Occi(CloudConnector):
         """
         self.__check_token()
         headers = {'Accept': 'text/plain,text/occi'}
-        #if self.token is not None:
-        #    headers["X-Auth-Token"] = self.token
         response = self.session.get("%s/-/" % self.params['endpoint'],
                                     headers=headers,
                                     cert=self.params['proxy'],
@@ -355,36 +326,11 @@ class OpenstackAuth:
                 return response['access']['token']['id'], response['access']['token']['expires']
 
 
-def _delete(url, identifier, token):
-    import pycurl
-    import StringIO
-
-    curl = pycurl.Curl()
-    curl.setopt(pycurl.CUSTOMREQUEST, 'DELETE')
-    curl.setopt(pycurl.URL, str(url))
-    curl.setopt(pycurl.USERAGENT, 'Vcycle 0.6')
-
-    outputBuffer = StringIO.StringIO()
-    curl.setopt(pycurl.WRITEFUNCTION, outputBuffer.write)
-
-    headersBuffer = StringIO.StringIO()
-    curl.setopt(pycurl.HEADERFUNCTION, headersBuffer.write)
-
-    # Set up the list of headers to send in the request
-    allHeaders = ['Accept: application/occi+json',
-                  'Content-Type: application/occi+json',
-                  'X-Auth-Token: %s' % token]
-    curl.setopt(pycurl.HTTPHEADER, allHeaders)
-    curl.setopt(pycurl.VERBOSE, 0)
-    curl.setopt(pycurl.TIMEOUT, 30)
-    curl.setopt(pycurl.FOLLOWLOCATION, False)
-    curl.setopt(pycurl.SSL_VERIFYPEER, 1)
-    curl.setopt(pycurl.SSL_VERIFYHOST, 2)
-    curl.perform()
-    headersBuffer.seek(0)
-    oneLine = headersBuffer.readline()
-    #print oneLine
-    #return identifier
+def _delete(url, token):
+    curl_call = "curl -XDELETE -H \"X-Auth-Token: %s\" %s -k" % (token, url)
+    import subprocess
+    process = subprocess.Popen(curl_call, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    (stdout, stderr) = process.communicate()
 
 def create(**kwargs):
     return Occi(**kwargs)
