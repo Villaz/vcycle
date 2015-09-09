@@ -19,6 +19,8 @@ from pymongo import MongoClient
 
 
 db = None
+collection_name = None
+capped_name = None
 configuration_file = None
 connectors = {}
 queue = multiprocessing.Queue()
@@ -27,7 +29,7 @@ locks = {}
 
 
 def start_process(conf=u'/etc/vcycle/vcycle.conf'):
-    global db, configuration_file, connectors, queue, processes, locks
+    global db, configuration_file, connectors, queue, processes, locks, capped_name, collection_name
 
     configuration_file = configuration.load(path=conf, logger=get_log())
 
@@ -140,6 +142,8 @@ def create_client(site, experiment, hostname=None, delete=False, multiple=False)
     connector = connectors[configuration_file['vcycle']['experiments'][experiment]['sites'][site]['connector']]
     cycle = vcycle.Cycle(client=connector,
                          db=db,
+                         collection=collection_name,
+                         capped=capped_name,
                          site=site,
                          experiment=experiment,
                          params=configuration_file['vcycle']['experiments'][experiment]['sites'][site],

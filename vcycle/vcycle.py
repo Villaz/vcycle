@@ -16,7 +16,7 @@ class Cycle:
     based on these knowledgment
 
     """
-    def __init__(self, client=None, db=None, site=None, experiment=None, params=None, logger=None):
+    def __init__(self, client=None, db=None, site=None, experiment=None, params=None, logger=None, capped=None, collection=None):
         """ Init function
 
         Initialize a new instance of Cycle.
@@ -36,6 +36,8 @@ class Cycle:
          """
         self.client = client
         self.db = db
+        self.capped = capped
+        self.collection = collection
         self.site = site
         self.experiment = experiment
         self.params = params
@@ -128,6 +130,8 @@ class Cycle:
         params_to_create = copy.deepcopy(self.params)
         params_to_create['hostname'] = params_to_create['id'] = "%s-%s" % (self.params['prefix'], str(int(moment.now().epoch())))
         params_to_create['site'] = self.site
+        params_to_create['collection'] = self.collection
+        params_to_create['capped'] = self.capped
 
         if 'experiment' in params_to_create:
             params_to_create[params_to_create['experiment']] = True
@@ -139,12 +143,12 @@ class Cycle:
 
         # If user_data starts with #! is a script not name template
         if '#!' not in params_to_create['user_data']:
-
             try:
                 env = Environment(loader=FileSystemLoader('/etc/vcycle/contextualization/'))
             except Exception as e:
                 self.logger.error(str(e))
                 return
+
             #env = Environment(loader=PackageLoader('contextualization', ''))
             template = env.get_template(params_to_create['user_data'])
             params_to_create['user_data'] = template.render(params_to_create)
