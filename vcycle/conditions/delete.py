@@ -20,6 +20,28 @@ class Delete(DeleteBase):
                             info=info,
                             logger=logger)
 
+    def delete_vms_if_higher_than_max_vms(self, list_servers=[]):
+        ids_to_delete = []
+        total_machines = self.collection.count({'site': self.site,
+                                                'experiment': self.experiment,
+                                                'state': {'$in': ['CREATING', 'BOOTED', 'STARTED']}})
+        for state in ['CREATING', 'BOOTED', 'STARTED']:
+            creating_machines = self.collection.find({'site': self.site,
+                                                'experiment': self.experiment,
+                                                'state': state})
+            for machine in creating_machines:
+                if self.info['max_machines'] < (total_machines - len(ids_to_delete)):
+                    self.logger.info("Deleting VM %s because %s higher than %s" % (machine['hostname'],
+                                                                                (total_machines - len(ids_to_delete)),
+                                                                                self.info['max_machines']))
+                    self.client.delete(machine['id'])
+                    ids_to_delete.append(machine['id'])
+                else:
+                    break
+            if (total_machines - len(ids_to_delete)) <= self.info['max_machines']:
+                break
+        self.collection.update_many({'id': {'$in': ids_to_delete}},{'$set': {'state': 'DELETED'}})
+
     def delete_computers_in_error_stopped_ended_state(self, list_servers=[]):
         cursor = self.collection.find({'site': self.site,
                                        'experiment': self.experiment,
