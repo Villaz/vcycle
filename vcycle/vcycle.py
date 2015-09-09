@@ -218,8 +218,14 @@ class Cycle:
         :param created: Number of vms created in the cycle
         :return: True if a VM can be created. False if not
         """
-        if created >= 5:
-            self.logger.info("Thread has created 5 machines, The thread will end") if self.logger is not None else False
+        if 'machines_per_cycle' in self.params:
+            machines_per_cycle = self.params['machines_per_cycle']
+        else:
+            machines_per_cycle = 5
+
+        if created >= machines_per_cycle:
+            if self.logger is not None:
+                self.logger.info("Thread has created %s machines, The thread will end", machines_per_cycle )
             return False
 
         if self.__only_one_machine_not_started():
