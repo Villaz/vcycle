@@ -30,7 +30,7 @@ class Delete(DeleteBase):
                                                 'experiment': self.experiment,
                                                 'state': state})
             for machine in creating_machines:
-                if self.info['max_machines'] < (total_machines - len(ids_to_delete)):
+                if int(self.info['max_machines']) < (total_machines - len(ids_to_delete)):
                     self.logger.info("Deleting VM %s because %s higher than %s" % (machine['hostname'],
                                                                                 (total_machines - len(ids_to_delete)),
                                                                                 self.info['max_machines']))
@@ -38,7 +38,7 @@ class Delete(DeleteBase):
                     ids_to_delete.append(machine['id'])
                 else:
                     break
-            if (total_machines - len(ids_to_delete)) <= self.info['max_machines']:
+            if (total_machines - len(ids_to_delete)) <= int(self.info['max_machines']):
                 break
         self.collection.update_many({'id': {'$in': ids_to_delete}},{'$set': {'state': 'DELETED'}})
 
