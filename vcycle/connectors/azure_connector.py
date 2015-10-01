@@ -40,6 +40,7 @@ class Azure(CloudConnector):
             raise CloudException(str(ex))
         vms = []
         for result in results:
+            if prefix is not None and not result.service_name.startswith(prefix): continue
             try:
                 info = sms.get_hosted_service_properties(result.service_name, True)
             except WindowsAzureMissingResourceError as ex:
@@ -47,7 +48,6 @@ class Azure(CloudConnector):
                 continue
 
             if len(info.deployments) == 0: continue
-            if prefix is not None and not result.service_name.startswith(prefix): continue
 
             try:
                 status = info.deployments[0].role_instance_list[0].instance_status
@@ -108,7 +108,7 @@ class Azure(CloudConnector):
                              password=kwargs['password'],
                              user_data=kwargs['user_data'],
                              fingerprint=(fingerprint, path))
-            return {'id': kwargs['hostname'], 'hostname': kwargs['hostname'], 'state': 'CREATING'}
+            return [{'id': kwargs['hostname'], 'hostname': kwargs['hostname'], 'state': 'CREATING'}]
         except Exception as ex:
             try:
                 self.delete(kwargs['hostname'])

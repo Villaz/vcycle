@@ -7,6 +7,7 @@ except:
 from novaclient.client import Client
 import os
 import uuid
+import subprocess
 
 
 class Openstack(CloudConnector):
@@ -25,7 +26,7 @@ class Openstack(CloudConnector):
             self.logger = kwargs['logger']
         self.client = Client('2',
                              username=self.params['username'],
-                             api_key=self.params['password'],
+                             api_key= Openstack.decrypt_password(self.params['password']),
                              project_id=self.params['tenant'],
                              auth_url=self.params['endpoint'])
 
@@ -77,13 +78,20 @@ class Openstack(CloudConnector):
         :type user_data: string
         :return: Id , hostname and state of the created VM
         """
+        import json
         server = self.client.servers.create(kwargs['hostname'],
                                             kwargs['image'],
                                             kwargs['flavor'],
+                                            min_count=kwargs['machines_per_cycle'],
+                                            meta=kwargs['meta'],
                                             key_name=kwargs['key_name'],
                                             userdata=kwargs['user_data'])
+        return self.list(kwargs['hostname'])
+        '''
+        info = {'id': server.id, 'hostname': server.name,
+                'state': server.status,
+                'created_vms': kwargs['machines_per_cycle']}
 
-        info = {'id': server.id, 'hostname': server.name, 'state': server.status}
         if info['state'] in ['BUILDING', 'BUILD', 'ACTIVE']:
             info['state'] = 'CREATING'
         elif info['state'] in ['PAUSED','STOPPED','SUSPENDED','SHUTOFF']:
@@ -91,7 +99,16 @@ class Openstack(CloudConnector):
         else:
             info['state'] = 'ENDED'
         return info
+        '''
 
+    @staticmethod
+    def decrypt_password(password):
+        if password.startswith("file("):
+            password = password[len("file("):-1]
+            command = "gpg -d %s" % password
+            (out,err) = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
+            return out
+        return password
 
 def create(**kwargs):
     return Openstack(**kwargs)

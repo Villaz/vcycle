@@ -111,7 +111,7 @@ class Dbce(CloudConnector):
                                  verify=False)
         if response.status_code == 201:
             info = response.json()['data']
-            return {'id': info['id'], 'hostname': info['name'], 'state': info['state'].upper()}
+            return [{'id': info['id'], 'hostname': info['name'], 'state': info['state'].upper()}]
         else:
             raise CloudException(response.json())
 

@@ -66,13 +66,12 @@ class Occi(CloudConnector):
         :return List of VMs
         """
         self.__check_token()
-        #headers = {}
-        #if self.token is not None:
-        #    headers["X-Auth-Token"] = self.token
+        print "Start list"
         response = self.session.get(self.params['endpoint']+"/compute/",
                                     cert=self.params['proxy'],
                                     timeout=60,
                                     verify=False)
+        print "End list"
         response = response.text
         if response is None:
             return []
@@ -163,7 +162,7 @@ class Occi(CloudConnector):
                 vm['id'] = vm['id'][vm['id'].rfind("/")+1:]
             else:
                 vm['id'] = response.text[response.text.find(":")+1:].rstrip()
-        return vm
+        return [vm]
 
     def __describe(self, uri, token, vms):
         """ Returns a description of a given VM
@@ -327,10 +326,11 @@ class OpenstackAuth:
 
 
 def _delete(url, token):
-    curl_call = "curl -XDELETE -H \"X-Auth-Token: %s\" %s -k" % (token, url)
+    curl_call = "curl -XDELETE -H \"X-Auth-Token: %s\" %s -k -v" % (token, url)
     import subprocess
     process = subprocess.Popen(curl_call, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     (stdout, stderr) = process.communicate()
+
 
 def create(**kwargs):
     return Occi(**kwargs)

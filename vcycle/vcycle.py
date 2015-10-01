@@ -74,15 +74,18 @@ class Cycle:
         self.db.update_many({'id': {'$in': ids}, 'state': 'DELETED',
                              'boot': {'$exists': False}}, {'$set': {'state': 'CREATING'}})
 
-        DeleteBase.execute(list_vms_provider,
-                           collection=self.db,
-                           site=self.site,
-                           experiment=self.experiment,
-                           client=self.client,
-                           info=self.params,
-                           logger=self.logger)
+        if 'delete' in self.params and self.params['delete']:
+            DeleteBase.execute(list_vms_provider,
+                               collection=self.db,
+                               site=self.site,
+                               experiment=self.experiment,
+                               client=self.client,
+                               info=self.params,
+                               logger=self.logger)
 
-
+        if 'check' in self.params and self.params['check'] is False:
+            self.__create_vm(self.params['machines_per_cycle'])
+            return
 
         if int(self.params['max_machines']) < 1:
             return
@@ -90,7 +93,7 @@ class Cycle:
         if states['TOTAL'] == 0 or (states['TOTAL'] > 0 and
                                     states['CREATING'] > 0 and
                                     self.__deployed_machines_less_than_maximum()):
-            self.__create_vm()
+            self.create()
         elif states['TOTAL'] > 0 and self.__deployed_machines_less_than_maximum(): # and states['CREATING'] == 0
             self.create()
         else:
@@ -112,15 +115,16 @@ class Cycle:
         :param created: Number of vms created by the iterator. On each iteration a maximum of 2 vms are created.
 
         """
-        if not self.__conditions_to_create(created):
+        vms_to_create = self.__conditions_to_create(created)
+        if vms_to_create == 0:
             return
         try:
-            self.__create_vm()
-            self.create(created + 1)
+            vms_created = self.__create_vm(vms_to_create)
+            self.create(created + vms_created)
         except Exception,e:
             self.logger.error(e.message) if self.logger is not None else False
 
-    def __create_vm(self):
+    def __create_vm(self, vms_to_create=1):
         """ Create a new VM
 
             Parse all parameters, create the final user_data from the template and send the request to the provider.
@@ -143,38 +147,40 @@ class Cycle:
 
         # If user_data starts with #! is a script not name template
         if '#!' not in params_to_create['user_data']:
+            '''
             try:
                 env = Environment(loader=FileSystemLoader('/etc/vcycle/contextualization/'))
             except Exception as e:
                 self.logger.error(str(e))
                 return
-
-            #env = Environment(loader=PackageLoader('contextualization', ''))
+            '''
+            env = Environment(loader=PackageLoader('contextualization', ''))
             template = env.get_template(params_to_create['user_data'])
             params_to_create['user_data'] = template.render(params_to_create)
-            #open("../tmp/%s" % params_to_create['hostname'], 'w').write(params_to_create['user_data'])
+            open("../tmp/%s" % params_to_create['hostname'], 'w').write(params_to_create['user_data'])
 
         params_to_create['logger'] = self.logger if self.logger is not None else False
-
+        params_to_create['machines_per_cycle'] = vms_to_create
         try:
-            server = self.client.create(**params_to_create)
-            try:
-                if 'public_ip' in self.params:
-                    import json
-                    aux = self.client.add_network_address(server['id'])
-                    print json.dumps(aux, indent=2)
-            except Exception as ex:
-                self.logger.error("Error creating public IP %s", str(ex))
-            self.db.insert({'id': server['id'],
-                            'hostname': server['hostname'],
-                            'state': server['state'],
-                            'site': self.site,
-                            'experiment': self.experiment,
-                            'createdTime': int(time.mktime(time.gmtime(time.time())))})
-            self.logger.info(" VM %s has been created", server['hostname']) if self.logger is not None else False
+            servers = self.client.create(**params_to_create)
+            for server in servers:
+                try:
+                    if 'public_ip' in self.params:
+                        import json
+                        aux = self.client.add_network_address(server['id'])
+                        print json.dumps(aux, indent=2)
+                except Exception as ex:
+                    self.logger.error("Error creating public IP %s", str(ex))
+                self.db.insert({'id': server['id'],
+                                'hostname': server['hostname'],
+                                'state': server['state'],
+                                'site': self.site,
+                                'experiment': self.experiment,
+                                'createdTime': int(time.mktime(time.gmtime(time.time())))})
+                self.logger.info(" VM %s has been created", server['hostname']) if self.logger is not None else False
+            return len(servers)
         except CloudException as ex:
             self.logger.error(str(ex))
-
 
     def list(self):
         """ List all VMs deployed in the provider
@@ -282,10 +288,17 @@ class Cycle:
         if int(val) < int(self.params['max_machines']):
             if self.logger is not None:
                 self.logger.info("Number of VM %s is less than %s ; new VMs will be created" % (val, self.params['max_machines']))
-            return True
+            if 'machines_per_cycle' in self.params :
+                if self.params['machines_per_cycle'] > self.params['max_machines'] - int(val):
+                    return self.params['machines_per_cycle'] - int(val)
+                else:
+                    return self.params['machines_per_cycle']
+            else:
+                return int(self.params['max_machines']) - int(val)
+
         if self.logger is not None:
             self.logger.info("Number of VM %s is equal or higher than %s ; no create more VMs" % (val, self.params['max_machines']))
-        return False
+        return 0
 
 
 
