@@ -237,7 +237,7 @@ class Delete(unittest.TestCase):
         self.assertEqual(new_servers, None)
 
     def test_all_vms_are_in_provider_and_db(self):
-        info = {'connector': {}, 'boot_time': 400, 'start_time': 500, 'heartbeat': 600, 'walltime': 1700}
+        info = {'connector': {}, 'boot_time': 400, 'start_time': 500, 'heartbeat': 600, 'walltime': 1700, 'max_machines':2000}
         list_servers = [{'id': i, 'hostname': i, 'state': 'STARTED', 'site':'test', 'experiment':'test'} for i in range(1000)]
         db.test.delete_many({})
         db.test.insert_many(list_servers)
