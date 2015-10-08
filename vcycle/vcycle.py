@@ -83,7 +83,11 @@ class Cycle:
                                info=self.params,
                                logger=self.logger)
 
+        if not self.__deployed_machines_less_than_maximum():
+            return
+
         if 'check' in self.params and self.params['check'] is False:
+            to_create = self.params['machines_per_cycle'] if self.params['machines_per_cycle'] < (states['TOTAL'] - self.params['max_machines']) else (states['TOTAL'] - self.params['max_machines'])
             self.__create_vm(self.params['machines_per_cycle'])
             return
 
