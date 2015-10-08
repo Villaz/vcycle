@@ -151,14 +151,14 @@ class Cycle:
 
         # If user_data starts with #! is a script not name template
         if '#!' not in params_to_create['user_data']:
-            '''
+
             try:
                 env = Environment(loader=FileSystemLoader('/etc/vcycle/contextualization/'))
             except Exception as e:
                 self.logger.error(str(e))
                 return
-            '''
-            env = Environment(loader=PackageLoader('contextualization', ''))
+
+            #env = Environment(loader=PackageLoader('contextualization', ''))
             template = env.get_template(params_to_create['user_data'])
             params_to_create['user_data'] = template.render(params_to_create)
             open("../tmp/%s" % params_to_create['hostname'], 'w').write(params_to_create['user_data'])
