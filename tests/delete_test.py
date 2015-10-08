@@ -220,7 +220,7 @@ class Delete(unittest.TestCase):
         self.assertEqual(db.test.find({'state': 'DELETED'}).count(), 3)
 
     def test_execute_delete(self):
-        info = {'connector': {}, 'boot_time': 400, 'start_time': 500, 'heartbeat': 600, 'walltime': 1700}
+        info = {'connector': {}, 'boot_time': 400, 'start_time': 500, 'heartbeat': 600, 'walltime': 1700, 'max_machines':2000}
         list_servers = [{'id': 1, 'hostname': 1, 'state': 'STOPPED'},
                         {'id': 2, 'hostname': 2, 'state': 'ERROR'},
                         {'id': 3, 'hostname': 3, 'state': 'ENDED'},
