@@ -9,7 +9,7 @@ Source: vcycle.tgz
 URL: http://www.gridpp.ac.uk/vac/
 Vendor: GridPP
 Packager: Andrew McNab <Andrew.McNab@cern.ch>
-Requires: httpd,mod_ssl,python-pycurl,m2crypto,python-requests
+Requires: httpd,mod_ssl,python-pycurl,m2crypto,python-requests,openssl
 
 %description
 VM lifecycle manager daemon for OpenStack etc
@@ -62,6 +62,9 @@ fi
 /etc/rc.d/init.d/vcycled
 /etc/logrotate.d/vcycled
 /etc/vcycle.d
+
+%post azure
+pip install azure-servicemanagement-legacy
 
 %files azure
 /usr/lib64/python2.6/site-packages/vcycle/azure_api.py* 

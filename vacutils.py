@@ -41,13 +41,16 @@ import re
 import sys
 import stat
 import time
+import json
+import ctypes
 import string
 import urllib
 import StringIO
 import tempfile
 import calendar
-
+import hashlib
 import pycurl
+import base64
 import M2Crypto
 
 def logLine(text):
@@ -87,7 +90,8 @@ def secondsToHHMMSS(seconds):
    mm, ss = divmod(ss, 60)
    return '%02d:%02d:%02d' % (hh, mm, ss)
 
-def createUserData(shutdownTime, machinetypesPath, options, versionString, spaceName, machinetypeName, userDataPath, hostName, uuidStr):
+def createUserData(shutdownTime, machinetypesPath, options, versionString, spaceName, machinetypeName, userDataPath, hostName, uuidStr, 
+                   machinefeaturesURL = None, jobfeaturesURL = None, joboutputsURL = None):
    
    # Get raw user_data template file, either from network ...
    if (userDataPath[0:7] == 'http://') or (userDataPath[0:8] == 'https://'):
@@ -134,6 +138,15 @@ def createUserData(shutdownTime, machinetypesPath, options, versionString, space
    userDataContents = userDataContents.replace('##user_data_machine_hostname##', hostName)
    userDataContents = userDataContents.replace('##user_data_manager_version##',  versionString)
    userDataContents = userDataContents.replace('##user_data_manager_hostname##', os.uname()[1])
+
+   if machinefeaturesURL:
+     userDataContents = userDataContents.replace('##user_data_machinefeatures_url##', machinefeaturesURL)
+
+   if jobfeaturesURL:
+     userDataContents = userDataContents.replace('##user_data_jobfeatures_url##', jobfeaturesURL)
+
+   if joboutputsURL:
+     userDataContents = userDataContents.replace('##user_data_joboutputs_url##', joboutputsURL)     
 
    # Deprecated vmtype/VM/VMLM terminology
    userDataContents = userDataContents.replace('##user_data_vmtype##',           machinetypeName)
@@ -295,6 +308,96 @@ def makeX509Proxy(certPath, keyPath, expirationTime, isLegacyProxy=False):
 
    return proxyString 
 
+def getCernvmImageData(fileName):
+
+   data = { 'verified' : False, 'dn' : None }
+
+   try:
+     length = os.stat(fileName).st_size
+   except Exception as e:
+     logLine('Failed to get CernVM image size (' + str(e) + ')')     
+     return data
+   
+   if length <= 65536:
+     logLine('CernVM image only ' + str(length) + ' bytes long: must be more than 65536')
+     return data
+
+   try:
+     f = open(fileName, 'r')
+   except Exception as e:
+     logLine('Failed to open CernVM image (' + str(e) + ')')
+     return data
+
+   try:
+     f.seek(-64 * 1024, os.SEEK_END)
+     metadataBlock = f.read(32 * 1024).rstrip("\x00")
+     # Quick hack until the metadata section is fixed in the CernVM images (extra comma)
+     metadataBlock = metadataBlock.replace('HEAD",\n', 'HEAD"\n')
+     metadataDict  = json.loads(metadataBlock)
+
+     if 'ucernvm-version' in metadataDict:
+       data['version'] = metadataDict['ucernvm-version']
+   except Exception as e:
+     logLine('Failed to load Metadata Block JSON from CernVM image (' + str(e) + ')')
+
+   try:
+     f.seek(-32 * 1024, os.SEEK_END)
+     signatureBlock = f.read(32 * 1024).rstrip("\x00")
+     # Quick hack until the howto-verify section is fixed in the CernVM images (missing commas)
+     signatureBlock = signatureBlock.replace('signature>"\n', 'signature>",\n').replace('cvm-sign01.cern.ch"\n', 'cvm-sign01.cern.ch",\n')
+     signatureDict  = json.loads(signatureBlock)
+   except Exception as e:
+     logLine('Failed to load Signature Block JSON from CernVM image (' + str(e) + ')')
+     return data
+
+   try:
+     f.seek(0, os.SEEK_SET)
+     digestableImage = f.read(length - 32 * 1024)
+     hash = hashlib.sha256(digestableImage)
+     digest = hash.digest()
+   except Exception as e:
+     logLine('Failed to make digest of CernVM image (' + str(e) + ')')
+     return data
+
+   try:
+     certificate = base64.b64decode(signatureDict['certificate'])
+     x509 = M2Crypto.X509.load_cert_string(certificate)
+     rsaPubkey = x509.get_pubkey().get_rsa()
+   except Exception as e:
+     logLine('Failed to get X.509 certificate and RSA public key (' + str(e) + ')')
+     return data
+
+   try:
+     signature = base64.b64decode(signatureDict['signature'])
+   except:
+     logLine('Failed to get signature from CernVM Signature Block')
+     return data
+
+   if not rsaPubkey.verify(digest, signature, 'sha256'):
+     logLine('Certificate and calculated hash do not match given signature')
+     return data
+
+   try:
+     # This isn't provided by M2Crypto, so we use openssl command
+     p = os.popen('/usr/bin/openssl verify -CApath /etc/grid-security/certificates >/dev/null', 'w')
+     p.write(certificate)
+
+     if p.close() is None:
+       try:
+         dn = str(x509.get_subject())
+       except Exception as e:
+         logLine('Failed to get X.509 Subject DN (' + str(e) + ')')
+         return data
+       else:
+         data['verified'] = True
+         data['dn']       = dn
+         
+   except Exception as e:
+     logLine('Failed to run /usr/bin/openssl verify command (' + str(e) + ')')
+     return data
+   
+   return data
+
 def getRemoteRootImage(url, imageCache, tmpDir):
 
    try:
@@ -386,3 +489,57 @@ def splitCommaHeaders(inputList):
        outputList.append(x.strip())
        
    return outputList
+
+def setProcessName(processName):
+
+   try:
+     # Load the libc symbols
+     libc = ctypes.cdll.LoadLibrary('libc.so.6')
+
+     # Set up the C-style string
+     s = ctypes.create_string_buffer(len(processName) + 1)
+     s.value = processName
+
+     # PR_SET_NAME=15 in /usr/include/linux/prctl.h
+     libc.prctl(15, ctypes.byref(s), 0, 0, 0) 
+
+   except:
+     logLine('Failed setting process name to ' + processName + ' using prctl')
+     return
+              
+   try:
+     # Now find argv[] so we can overwrite it too     
+     argc_t = ctypes.POINTER(ctypes.c_char_p)
+
+     Py_GetArgcArgv = ctypes.pythonapi.Py_GetArgcArgv
+     Py_GetArgcArgv.restype = None
+     Py_GetArgcArgv.argtypes = [ctypes.POINTER(ctypes.c_int), ctypes.POINTER(argc_t)]
+
+     argv = ctypes.c_int(0)
+     argc = argc_t()
+     Py_GetArgcArgv(argv, ctypes.pointer(argc))
+
+     # Count up the available space
+     currentSize = -1
+
+     for oneArg in argc:
+       try:
+         # start from -1 to cancel the first "+ 1"
+         currentSize += len(oneArg) + 1
+       except:
+         break
+
+     # Cannot write more than already there
+     if len(processName) > currentSize:
+       processName = processName[:currentSize]
+
+     # Zero what is already there
+     ctypes.memset(argc.contents, 0, currentSize + 1)
+
+     # Write in the new process name
+     ctypes.memmove(argc.contents, processName, len(processName))
+
+   except:
+     logLine('Failed setting process name in argv[] to ' + processName)
+     return
+          

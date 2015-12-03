@@ -36,23 +36,12 @@
 #            Luis.Villazon.Esteban@cern.ch
 #
 
-import pprint
-
 import os
-import sys
-import stat
 import time
-import json
-import shutil
-import string
-import pycurl
-import random
 import base64
-import StringIO
-import tempfile
-import calendar
 
 import vcycle.vacutils
+
 
 class DbceError(Exception):
   pass
@@ -87,11 +76,6 @@ class DbceSpace(vcycle.BaseSpace):
       raise DbceError('version is required in DBCE [space ' + spaceName + '] (' + str(e) + ')')
 
     try:
-      self.platform = parser.get(spaceSectionName, 'platform')
-    except Exception as e:
-      raise DbceError('platform is required in DBCE [space ' + spaceName + '] (' + str(e) + ')')
-
-    try:
       self.network = parser.get(spaceSectionName, 'network')
     except Exception as e:
       raise DbceError('network is required in DBCE [space ' + spaceName + '] (' + str(e) + ')')
@@ -105,7 +89,7 @@ class DbceSpace(vcycle.BaseSpace):
     import time
     """Query DBCE compute service for details of machines in this space"""
 
-    # For each machine found in the space, this method is responsible for 
+    # For each machine found in the space, this method is responsible for
     # either (a) ignorning non-Vcycle VMs but updating self.totalMachines
     # or (b) creating a Machine object for the VM in self.spaces
 
@@ -115,40 +99,64 @@ class DbceSpace(vcycle.BaseSpace):
     except Exception as e:
       raise DbceError('Cannot connect to ' + self.url + ' (' + str(e) + ')')
 
-    for oneServer in result['response']['data']:
 
+    for oneServer in result['response']['data']:
       # Just in case other VMs are in this space
       if oneServer['name'][:7] != 'vcycle-':
         # Still count VMs that we didn't create and won't manage, to avoid going above space limit
         self.totalMachines += 1
         continue
 
+      # checks if the machine belongs to the space name
+      # if the machine does not belong to the actual space name,
+      # the machine will be omitted.
+      space_file = "/var/lib/vcycle/machines/%s/space_name" % oneServer['name']
+      if os.path.isfile(space_file):
+        server_space_name = open(space_file).read()
+        if server_space_name != self.spaceName:
+            continue
+      else:
+          continue
+
       uuidStr = str(oneServer['id'])
-      ip = '0.0.0.0'
-      createdTime  = int(time.time())
-      updatedTime  = int(time.time())
-      startedTime = int(time.time())
+      if os.path.isfile("/var/lib/vcycle/machines/%s/started" % oneServer['name']):
+          createdTime = int(open("/var/lib/vcycle/machines/%s/started" % oneServer['name']).read())
+          updatedTime = createdTime
+          startedTime = createdTime
+      else:
+          createdTime  = int(time.time())
+          updatedTime  = int(time.time())
+          startedTime = int(time.time())
 
-      status     = str(oneServer['state'])
-      machinetypeName = None
-
+      machinetypeName = oneServer['name'][oneServer['name'].find('-')+1:oneServer['name'].rfind('-')]
+      status = str(oneServer['state'])
       if status == 'started':
           state = vcycle.MachineState.running
       elif status == 'error':
           state = vcycle.MachineState.failed
+      elif status == 'stopped' or status == 'unknown':
+        try:
+            if os.path.isfile("/var/lib/vcycle/machines/%s/started" % oneServer['name']):
+                if int(time.time()) - createdTime < self.machinetypes[machinetypeName].fizzle_seconds:
+                    state = vcycle.MachineState.starting
+                else:
+                    state = vcycle.MachineState.shutdown
+            else:
+                state = vcycle.MachineState.unknown
+        except Exception as e:
+            state = vcycle.MachineState.unknown
       else:
-        state = vcycle.MachineState.unknown
+          state = vcycle.MachineState.failed
 
-      self.machines[oneServer['name']] = vcycle.Machine(name        = oneServer['name'],
-                                                               spaceName   = self.spaceName,
-                                                               state       = state,
-                                                               ip          = ip,
-                                                               createdTime = createdTime,
-                                                               startedTime = startedTime,
-                                                               updatedTime = updatedTime,
-                                                               uuidStr     = uuidStr,
-                                                               machinetypeName  = machinetypeName)
-
+      self.machines[oneServer['name']] = vcycle.Machine(name             = oneServer['name'],
+                                                 spaceName        = self.spaceName,
+                                                 state            = state,
+                                                 ip               = "0.0.0.0",
+                                                 createdTime      = createdTime,
+                                                 startedTime      = startedTime,
+                                                 updatedTime      = updatedTime,
+                                                 uuidStr          = uuidStr,
+                                                 machinetypeName  = machinetypeName)
 
   def createMachine(self, machineName, machinetypeName):
 
@@ -158,7 +166,7 @@ class DbceSpace(vcycle.BaseSpace):
         request = {
             'name': machineName,
             'platform': {
-                'id': self.platform
+                'id': self.tenancy_name
             },
             'image': {
                 'id': self.machinetypes[machinetypeName].root_image
@@ -179,17 +187,21 @@ class DbceSpace(vcycle.BaseSpace):
     try:
       result = self.httpRequest("%s/%s/machines" % (self.url, self.version),
                              request,
-                             verbose=False,
                              headers = ['DBCE-ApiKey: '+ self.key])
+      ip = self.add_public_ip(result['response']['data']['id'])
+
     except Exception as e:
       raise DbceError('Cannot connect to ' + self.url + ' (' + str(e) + ')')
 
     vcycle.vacutils.logLine('Created ' + machineName + ' (' + str(result['response']['data']['id']) + ') for ' + machinetypeName + ' within ' + self.spaceName)
-
-    self.machines[machineName] = vcycle.shared.Machine(name        = machineName,
+    vcycle.vacutils.createFile('/var/lib/vcycle/machines/' + machineName + '/uuid',
+                        str(result['response']['data']['id']),
+                        0644,
+                        '/var/lib/vcycle/tmp')
+    self.machines[machineName] = vcycle.Machine(name        = machineName,
                                                        spaceName   = self.spaceName,
                                                        state       = vcycle.MachineState.starting,
-                                                       ip          = '0.0.0.0',
+                                                       ip          = ip,
                                                        createdTime = int(time.time()),
                                                        startedTime = None,
                                                        updatedTime = int(time.time()),
@@ -197,7 +209,6 @@ class DbceSpace(vcycle.BaseSpace):
                                                        machinetypeName  = machinetypeName)
 
   def deleteOneMachine(self, machineName):
-
     try:
       self.httpRequest("%s/%s/machines/%s" % (self.url, self.version, self.machines[machineName].uuidStr),
                     request =  None,
@@ -207,3 +218,11 @@ class DbceSpace(vcycle.BaseSpace):
                                'DBCE-ApiKey: '+ self.key])
     except Exception as e:
       raise vcycle.shared.VcycleError('Cannot delete ' + machineName + ' via ' + self.url + ' (' + str(e) + ')')
+
+
+  def add_public_ip(self, id):
+      self.httpRequest("%s/%s/machines/%s/actions/assign-public-ip" % (self.url, self.version, id),
+                             request= {'empty':True},
+                             method = 'POST',
+                             headers = ['DBCE-ApiKey: '+ self.key])
+      return "0.0.0.0"

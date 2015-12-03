@@ -37,6 +37,7 @@
 import pprint
 
 import os
+import re
 import sys
 import stat
 import time
@@ -281,7 +282,7 @@ class OpenstackSpace(vcycle.BaseSpace):
        self.machinetypes[machinetypeName].root_image[0] == '/':
       imageName = self.machinetypes[machinetypeName].root_image
     else:
-      imageName = '/var/lib/vcycle/' + self.spaceName + '/' + machinetypeName + '/' + self.machinetypes[machinetypeName].root_image
+      imageName = '/var/lib/vcycle/spaces/' + self.spaceName + '/machinetypes/' + machinetypeName + '/files/' + self.machinetypes[machinetypeName].root_image
 
     # Find the local copy of the image file
     if not hasattr(self.machinetypes[machinetypeName], '_imageFile'):
@@ -315,7 +316,7 @@ class OpenstackSpace(vcycle.BaseSpace):
           imageLastModified = int(os.stat(imageName).st_mtime)
         except Exception as e:
           raise OpenstackError('Image file "' + self.machinetypes[machinetypeName].root_image +
-                            '" does not exist in /var/lib/vcycle/' + self.spaceName + '/' + machinetypeName + ' !')
+                            '" does not exist in /var/lib/vcycle/spaces/' + self.spaceName + '/machinetypes/' + machinetypeName + '/files/ !')
 
         self.machinetypes[machinetypeName]._imageFile = imageName
 
@@ -336,6 +337,16 @@ class OpenstackSpace(vcycle.BaseSpace):
         pass
 
     vcycle.vacutils.logLine('Image "' + self.machinetypes[machinetypeName].root_image + '" not found in image service, so uploading')
+
+    if self.machinetypes[machinetypeName].cernvm_signing_dn:
+      cernvmDict = vac.vacutils.getCernvmImageData(self.machinetypes[machinetypeName]._imageFile)
+
+      if cernvmDict['verified'] == False:
+        raise OpenstackError('Failed to verify signature/cert for ' + self.machinetypes[machinetypeName].root_image)
+      elif re.search(self.machinetypes[machinetypeName].cernvm_signing_dn,  cernvmDict['dn']) is None:
+        raise OpenstackError('Signing DN ' + cernvmDict['dn'] + ' does not match cernvm_signing_dn = ' + self.machinetypes[machinetypeName].cernvm_signing_dn)
+      else:
+        vac.vacutils.logLine('Verified image signed by ' + cernvmDict['dn'])
 
     # Try to upload the image
     try:
@@ -424,9 +435,9 @@ class OpenstackSpace(vcycle.BaseSpace):
         OpenstackError('Cannot open ' + self.machinetypes[machinetypeName].root_public_key)
     else:  
       try:
-        f = open('/var/lib/vcycle/' + self.spaceName + '/' + self.machinetypeName + '/' + self.machinetypes[machinetypeName].root_public_key, 'r')
+        f = open('/var/lib/vcycle/spaces/' + self.spaceName + '/machinetypes/' + self.machinetypeName + '/files/' + self.machinetypes[machinetypeName].root_public_key, 'r')
       except Exception as e:
-        OpenstackError('Cannot open ' + self.spaceName + '/' + self.machinetypeName + '/' + self.machinetypes[machinetypeName].root_public_key)
+        OpenstackError('Cannot open /var/lib/vcycle/spaces/' + self.spaceName + '/machinetypes/' + self.machinetypeName + '/files/' + self.machinetypes[machinetypeName].root_public_key)
 
     while True:
       try:
@@ -478,16 +489,24 @@ class OpenstackSpace(vcycle.BaseSpace):
     # OpenStack-specific machine creation steps
 
     try:
+      if self.machinetypes[machinetypeName].remote_joboutputs_url:
+        joboutputsURL = self.machinetypes[machinetypeName].remote_joboutputs_url + machineName
+      else:
+        joboutputsURL = 'https://' + os.uname()[1] + ':' + str(self.https_port) + '/machines/' + machineName + '/joboutputs'
+    
       request = { 'server' : 
                   { 'user_data' : base64.b64encode(open('/var/lib/vcycle/machines/' + machineName + '/user_data', 'r').read()),
                     'name'      : machineName,
                     'imageRef'  : self.getImageID(machinetypeName),
                     'flavorRef' : self.getFlavorID(machinetypeName),
                     'metadata'  : { 'cern-services'   : 'false',
-                                    'machinetype'	      : machinetypeName,
-                                    'machinefeatures' : 'https://' + os.uname()[1] + ':' + str(self.https_port) + '/' + machineName + '/machinefeatures',
-                                    'jobfeatures'     : 'https://' + os.uname()[1] + ':' + str(self.https_port) + '/' + machineName + '/jobfeatures',
-                                    'machineoutputs'  : 'https://' + os.uname()[1] + ':' + str(self.https_port) + '/' + machineName + '/machineoutputs' }
+                                    'machinetype'     : machinetypeName,
+                                    'machinefeatures' : 'https://' + os.uname()[1] + ':' + str(self.https_port) + '/machines/' + machineName + '/machinefeatures',
+                                    'jobfeatures'     : 'https://' + os.uname()[1] + ':' + str(self.https_port) + '/machines/' + machineName + '/jobfeatures',
+                                    'machineoutputs'  : joboutputsURL,
+                                    'joboutputs'      : joboutputsURL  }
+                    # Changing over from machineoutputs to joboutputs, so we set both in the metadata for now, 
+                    # but point them both to the joboutputs directory that we now provide
                   }    
                 }
 
